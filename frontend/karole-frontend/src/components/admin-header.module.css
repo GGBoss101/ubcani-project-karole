@@ -1,47 +1,110 @@
 .header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: min(1440px, 100%);
-  margin: 0 auto 56px;
-  border-bottom: 1px solid #292929;
-  padding-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0 calc(var(--gutter) * -1) clamp(28px, 5vw, 48px);
+  border-bottom: 1px solid var(--line);
+  padding: calc(12px + env(safe-area-inset-top)) var(--gutter) 12px;
+  background: color-mix(in srgb, var(--navy) 88%, transparent);
+  backdrop-filter: blur(12px);
 }
 
 .brand {
-  color: #f5f5f5;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  display: flex;
+  min-height: var(--tap);
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-heading);
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+
+.logo {
+  width: 34px;
+  height: 34px;
+}
+
+.badge {
+  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+  background: var(--yellow);
+  color: var(--navy);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .nav {
   display: flex;
-  gap: 24px;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .nav a,
 .logout {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: 40px;
   border: 0;
-  padding: 0;
+  border-radius: var(--radius-pill);
+  padding: 0 14px;
   background: transparent;
-  color: #777;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
 }
 
 .nav a:hover,
-.nav .active,
 .logout:hover {
-  color: #f5f5f5;
+  color: var(--text);
+  background: var(--surface);
 }
 
-@media (max-width: 600px) {
-  .header {
-    margin-bottom: 40px;
-  }
+.nav .active,
+.nav .active:hover {
+  background: var(--pink);
+  color: var(--navy);
+}
+
+.logout {
+  margin-left: 6px;
+  border: 1px solid var(--line-strong);
+}
+
+@media (max-width: 640px) {
   .nav {
-    gap: 16px;
+    width: 100%;
+    margin: 0 calc(var(--gutter) * -1);
+    width: calc(100% + var(--gutter) * 2);
+    max-width: none;
+    padding: 0 var(--gutter);
+  }
+
+  .nav a,
+  .logout {
+    min-height: var(--tap);
+    padding: 0 9px;
+    font-size: 14px;
+  }
+
+  .nav {
+    gap: 0;
+  }
+
+  .logout {
+    margin-left: auto;
   }
 }

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { BACKEND_URI } from "../../../lib/config";
-import { adminFetch, logOut } from "../../../lib/admin-auth";
+import { adminFetch } from "../../../lib/admin-auth";
 import AdminHeader from "../../../components/admin-header";
+import shared from "../admin.module.css";
 import styles from "./page.module.css";
 
 export default function AdminOperations() {
@@ -82,29 +83,28 @@ export default function AdminOperations() {
     }
 
     return (
-        <main className={styles.page}>
+        <main className={shared.page}>
             <AdminHeader />
-            <section className={styles.panel}>
-                <div className={styles.heading}>
+            <section className={shared.panel}>
+                <div className={shared.heading}>
                     <div>
-                        <p className={styles.eyebrow}>Admin / Operations</p>
+                        <p className={shared.eyebrow}>Admin / Operations</p>
                         <h1>Pending operations</h1>
                     </div>
                     <div className={styles.headingActions}>
-                        <button className={styles.matchAll} onClick={matchAll}>Match all</button>
-                        <button className={styles.flushButton} onClick={flushOperations}>Ignore all</button>
-                        <button className={styles.signOut} onClick={logOut}>Sign out</button>
+                        <button className="button-primary" onClick={matchAll}>Match all</button>
+                        <button className={shared.flushButton} onClick={flushOperations}>Ignore all</button>
                     </div>
                 </div>
 
-                {error && <p className={styles.error} role="alert">{error}</p>}
-                {message && <p className={styles.success} role="status">{message}</p>}
-                {status === "loading" && <p className={styles.message}>Loading pending operations...</p>}
+                {error && <p className={shared.error} role="alert">{error}</p>}
+                {message && <p className={shared.success} role="status">{message}</p>}
+                {status === "loading" && <p className={shared.message}>Loading pending operations...</p>}
                 {status === "ready" && operations.length === 0 && (
-                    <p className={styles.message}>No pending operations.</p>
+                    <p className={shared.message}>No pending operations.</p>
                 )}
                 {status === "ready" && operations.length > 0 && (
-                    <div className={styles.tableWrap}>
+                    <div className={shared.tableWrap}>
                         <table>
                             <thead>
                                 <tr>
@@ -121,11 +121,14 @@ export default function AdminOperations() {
                                     .sort((first, second) => second.score - first.score)
                                     .map((operation) => (
                                         <tr key={operation.po_id}>
-                                            <td>{operation.po_id}</td>
-                                            <td className={styles.name}>{operation.name}</td>
-                                            <td>{operation.name_alt}</td>
-                                            <td>{operation.score.toFixed(1)}%</td>
-                                            <td className={styles.actions}>
+                                            <td data-label="ID">{operation.po_id}</td>
+                                            <td className={shared.name} data-label="Primary">{operation.name}</td>
+                                            <td data-label="Alternative">{operation.name_alt}</td>
+                                            <td data-label="Similarity">
+                                                <span className={styles.score}>{operation.score.toFixed(1)}%</span>
+                                            </td>
+                                            <td>
+                                                <div className={styles.actions}>
                                                 <button onClick={() => runOperation(
                                                     "/operation/handle",
                                                     operation.po_id,
@@ -136,6 +139,7 @@ export default function AdminOperations() {
                                                     operation.po_id,
                                                     `Ignore this pending operation for "${operation.name_alt}"?`
                                                 )}>Ignore</button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

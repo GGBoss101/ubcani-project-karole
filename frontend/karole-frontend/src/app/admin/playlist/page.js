@@ -2,8 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { BACKEND_URI } from "../../../lib/config";
-import { adminFetch, logOut } from "../../../lib/admin-auth";
+import { adminFetch } from "../../../lib/admin-auth";
 import AdminHeader from "../../../components/admin-header";
+import SongThumbnail from "../../../components/song-thumbnail";
+import { useQueueSettings } from "../../../lib/use-queue-settings";
+import { fetchQueueFinished } from "../../../lib/use-playlist";
+import { formatLength, totalLength } from "../../../lib/queue-time";
+import shared from "../admin.module.css";
 import styles from "./page.module.css";
 
 // Shows a length in seconds as minutes:seconds, for example 3725 becomes "62:05".
@@ -19,8 +24,26 @@ export default function AdminPlaylist() {
     const [error, setError] = useState("");
     const [playback, setPlayback] = useState({ playing: false, song: null });
     const [openMenu, setOpenMenu] = useState(null);
+    // Where the open song menu sits on screen. It floats above the page (position: fixed) so
+    // the table's edges can't cut it off when there are only a few songs.
+    const [menuPosition, setMenuPosition] = useState(null);
+
+    // A floating menu would drift away from its song when the page scrolls, so close it.
+    useEffect(() => {
+        if (openMenu === null) return;
+        const close = () => setOpenMenu(null);
+        window.addEventListener("scroll", close, { passive: true });
+        window.addEventListener("resize", close);
+        return () => {
+            window.removeEventListener("scroll", close);
+            window.removeEventListener("resize", close);
+        };
+    }, [openMenu]);
     const [draggedId, setDraggedId] = useState(null);
     const [targetPositions, setTargetPositions] = useState({});
+    const queue = useQueueSettings();
+    // True once playback has run past the last song (playback.song is then that song).
+    const [finished, setFinished] = useState(false);
 
     useEffect(() => {
         let isActive = true;
@@ -36,8 +59,10 @@ export default function AdminPlaylist() {
                 }
                 const nextPlayback = await playbackResponse.json();
                 const playlist = await response.json();
+                const queueFinished = await fetchQueueFinished();
                 if (isActive) {
                     setPlayback(nextPlayback);
+                    setFinished(queueFinished);
                     setSongs(playlist.sort((first, second) => first.order_num - second.order_num));
                     setStatus("ready");
                     setError("");
@@ -74,6 +99,7 @@ export default function AdminPlaylist() {
             throw new Error(`Request failed with status ${response.status}`);
         }
         setPlayback(await response.json());
+        setFinished(await fetchQueueFinished());
     }
 
     // Back, play/pause and skip: the same backend routes the player page uses.
@@ -119,6 +145,7 @@ export default function AdminPlaylist() {
                 throw new Error(result?.detail || `Request failed with status ${response.status}`);
             }
             setPlayback(result);
+            setFinished(false);
         } catch (requestError) {
             setError(requestError.message);
         }
@@ -160,35 +187,88 @@ export default function AdminPlaylist() {
         setTargetPositions((current) => ({ ...current, [songId]: value }));
     }
 
-    let nowPlayingText = "Nothing is playing";
-    if (playback.song) {
-        nowPlayingText = `${playback.playing ? "Playing" : "Paused"}: ${playback.song.url_title}`;
+    async function toggleQueue() {
+        setError("");
+        try {
+            await queue.setOpen(!queue.open);
+        } catch (requestError) {
+            setError(requestError.message);
+        }
+    }
+
+    // Time left counts the song playing now and everything after it.
+    const currentIndex = songs.findIndex((song) => song.p_id === playback.song?.p_id);
+    const remaining = currentIndex >= 0 ? songs.slice(currentIndex + (finished ? 1 : 0)) : songs;
+
+    let playbackState = "Nothing is playing";
+    if (finished) {
+        playbackState = remaining.length > 0 ? "Queue ran out · press Play for the next song" : "Queue finished";
+    } else if (playback.song) {
+        playbackState = playback.playing ? "Now playing" : "Paused";
     }
 
     return (
-        <main className={styles.page}>
+        <main className={shared.page}>
             <AdminHeader />
-            <section className={styles.panel}>
-                <div className={styles.heading}>
+            <section className={shared.panel}>
+                <div className={shared.heading}>
                     <div>
-                        <p className={styles.eyebrow}>Admin / Playlist</p>
+                        <p className={shared.eyebrow}>Admin / Playlist</p>
                         <h1>Manage playlist</h1>
                     </div>
-                    <button className={styles.signOut} onClick={logOut}>Sign out</button>
                 </div>
 
-                <div className={styles.controls}>
-                    <p className={styles.nowPlaying}>{nowPlayingText}</p>
+                <div className={styles.queueBar}>
+                    <dl className={styles.stats}>
+                        <div>
+                            <dt>Songs left</dt>
+                            <dd>{remaining.length}</dd>
+                        </div>
+                        <div>
+                            <dt>Time left</dt>
+                            <dd>{formatLength(totalLength(remaining))}</dd>
+                        </div>
+                        <div>
+                            <dt>Whole queue</dt>
+                            <dd>{formatLength(totalLength(songs))}</dd>
+                        </div>
+                    </dl>
+                    <button
+                        className={`${styles.switch} ${queue.open ? styles.switchOn : ""}`}
+                        type="button"
+                        role="switch"
+                        aria-checked={queue.open}
+                        onClick={toggleQueue}
+                        disabled={!queue.loaded}
+                    >
+                        <span className={styles.switchTrack} aria-hidden="true">
+                            <span className={styles.switchThumb} />
+                        </span>
+                        {queue.open ? "Taking songs" : "Queue closed"}
+                    </button>
+                </div>
+
+                <div className={`${styles.controls} ${playback.playing ? styles.isPlaying : ""}`}>
+                    <SongThumbnail key={playback.song?.p_id} song={finished ? null : playback.song} className={styles.nowPlayingArt} />
+                    <div className={styles.nowPlaying}>
+                        <p className={styles.playbackState}>{playbackState}</p>
+                        {playback.song && !finished && (
+                            <p className={styles.nowPlayingTitle}>
+                                {playback.song.url_title}
+                                <span> sung by {playback.song.name}</span>
+                            </p>
+                        )}
+                    </div>
                     <div className={styles.controlButtons}>
                         <button type="button" onClick={() => control("back")} aria-label="Previous song">Back</button>
-                        <button type="button" onClick={() => control("play_pause")}>
+                        <button className={styles.playButton} type="button" onClick={() => control("play_pause")}>
                             {playback.playing ? "Pause" : "Play"}
                         </button>
                         <button type="button" onClick={() => control("skip")} aria-label="Next song">Skip</button>
                     </div>
                 </div>
 
-                {error && <p className={styles.error} role="alert">{error}</p>}
+                {error && <p className={shared.error} role="alert">{error}</p>}
                 {songs.filter((song) => song.is_too_long).map((song) => (
                     <div className={styles.notice} role="alert" key={song.p_id}>
                         <p>
@@ -205,10 +285,10 @@ export default function AdminPlaylist() {
                         </div>
                     </div>
                 ))}
-                {status === "loading" && <p className={styles.message}>Loading playlist...</p>}
-                {status === "ready" && songs.length === 0 && <p className={styles.message}>No songs in the playlist.</p>}
+                {status === "loading" && <p className={shared.message}>Loading playlist...</p>}
+                {status === "ready" && songs.length === 0 && <p className={shared.message}>No songs in the playlist.</p>}
                 {status === "ready" && songs.length > 0 && (
-                    <div className={styles.tableWrap}>
+                    <div className={shared.tableWrap}>
                         <table>
                             <thead>
                                 <tr>
@@ -223,7 +303,12 @@ export default function AdminPlaylist() {
                             <tbody>
                                 {songs.map((song, index) => (
                                     <tr
-                                        className={draggedId === song.p_id ? styles.dragging : ""}
+                                        className={[
+                                            styles.row,
+                                            draggedId === song.p_id && styles.dragging,
+                                            song.p_id === playback.song?.p_id && !finished && styles.currentRow,
+                                            currentIndex >= 0 && (index < currentIndex || (finished && index === currentIndex)) && styles.sungRow,
+                                        ].filter(Boolean).join(" ")}
                                         key={song.p_id}
                                         draggable
                                         onClick={(event) => {
@@ -238,9 +323,14 @@ export default function AdminPlaylist() {
                                             setDraggedId(null);
                                         }}
                                     >
-                                        <td className={styles.order}>{index + 1}</td>
-                                        <td>{song.name}</td>
-                                        <td>
+                                        <td className={styles.order} data-label="Order">
+                                            {index + 1}
+                                            {song.p_id === playback.song?.p_id && !finished && (
+                                                <span className={styles.rowBadge}>{playback.playing ? "Playing" : "Paused"}</span>
+                                            )}
+                                        </td>
+                                        <td data-label="Name">{song.name}</td>
+                                        <td className={styles.channelCell} data-label="Channel">
                                             <div className={styles.channel}>
                                                 {/* Fallback: transparent 1x1 SVG if icon URL missing */}
                                                 <img
@@ -255,23 +345,38 @@ export default function AdminPlaylist() {
                                                 <span className={styles.channelName}>{song.url_creator}</span>
                                             </div>
                                         </td>
-                                        <td>
+                                        <td data-label="Song">
                                             <a className={styles.songLink} href={song.url} target="_blank" rel="noreferrer">
                                                 {song.url_title}
                                             </a>
                                         </td>
-                                        <td>{song.author}</td>
+                                        <td data-label="Author">{song.author}</td>
                                         <td className={styles.actionCell}>
                                 <button
                                     className={styles.menuButton}
                                     aria-label={`Actions for ${song.url_title}`}
                                     aria-expanded={openMenu === song.p_id}
-                                    onClick={() => setOpenMenu(openMenu === song.p_id ? null : song.p_id)}
+                                    onClick={(event) => {
+                                        if (openMenu === song.p_id) {
+                                            setOpenMenu(null);
+                                            return;
+                                        }
+                                        const button = event.currentTarget.getBoundingClientRect();
+                                        // Open upwards when there isn't room below the button.
+                                        const upwards = button.bottom + 340 > window.innerHeight && button.top > 340;
+                                        setMenuPosition({
+                                            right: Math.max(8, window.innerWidth - button.right),
+                                            ...(upwards
+                                                ? { bottom: window.innerHeight - button.top + 6 }
+                                                : { top: button.bottom + 6 }),
+                                        });
+                                        setOpenMenu(song.p_id);
+                                    }}
                                 >
                                     ...
                                 </button>
                                 {openMenu === song.p_id && (
-                                    <div className={styles.menu}>
+                                    <div className={styles.menu} style={menuPosition || undefined}>
                                         <button onClick={() => moveSong(song.p_id, index - 1)} disabled={index === 0}>Move up</button>
                                         <button onClick={() => moveSong(song.p_id, index + 1)} disabled={index === songs.length - 1}>Move down</button>
                                         <label>
@@ -307,9 +412,9 @@ export default function AdminPlaylist() {
                     </div>
                 )}
 
-                <div className={styles.dangerZone}>
+                <div className={shared.dangerZone}>
                     <p>Destructive actions</p>
-                    <button className={styles.flushButton} onClick={flushPlaylist}>
+                    <button className={shared.flushButton} onClick={flushPlaylist}>
                         Flush playlist database
                     </button>
                 </div>

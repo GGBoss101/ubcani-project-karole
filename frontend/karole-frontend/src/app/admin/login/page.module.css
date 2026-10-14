@@ -1,81 +1,85 @@
 .page {
+  display: grid;
   min-height: 100vh;
-  padding: 48px clamp(20px, 5vw, 72px);
-  background: #050505;
-  color: #f5f5f5;
-  font-family: var(--font-geist-sans);
+  place-items: center;
+  padding: 32px var(--gutter);
 }
 
 .panel {
-  width: min(520px, 100%);
-  margin: 0 auto;
+  width: min(440px, 100%);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 6px);
+  padding: clamp(24px, 5vw, 40px);
+  background: var(--surface);
+}
+
+.logo {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 20px;
 }
 
 .eyebrow {
-  margin-bottom: 14px;
-  color: #777;
-  font-size: 11px;
-  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+  color: var(--aqua);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .panel h1 {
-  font-size: clamp(38px, 7vw, 64px);
-  line-height: 1;
-  font-weight: 600;
+  color: var(--pink);
+  font-size: clamp(30px, 6vw, 40px);
 }
 
 .intro {
-  margin-top: 18px;
-  color: #999;
+  margin-top: 10px;
+  color: var(--text-muted);
   font-size: 15px;
 }
 
 .form {
   display: grid;
-  gap: 22px;
-  margin-top: 34px;
+  gap: 18px;
+  margin-top: 28px;
 }
 
 .field {
   display: grid;
-  gap: 9px;
+  gap: 8px;
 }
 
 .field span {
-  color: #bbb;
-  font-size: 12px;
-}
-
-.field input {
-  width: 100%;
-  border: 1px solid #373737;
-  border-radius: 0;
-  padding: 14px 15px;
-  outline: none;
-  background: #101010;
-  color: #f5f5f5;
-  font: inherit;
-}
-
-.field input:focus {
-  border-color: #f5f5f5;
-}
-
-.submit {
-  width: fit-content;
-  border: 1px solid #f5f5f5;
-  border-radius: 0;
-  padding: 13px 18px;
-  background: #f5f5f5;
-  color: #050505;
-  cursor: pointer;
-  font: inherit;
+  color: var(--text-soft);
   font-size: 13px;
   font-weight: 600;
 }
 
+.field input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 13px 14px;
+  outline: none;
+  background: var(--navy-deep);
+  font-size: 16px;
+}
+
+.field input:focus {
+  border-color: var(--aqua);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--aqua) 18%, transparent);
+}
+
+.submit {
+  margin-top: 6px;
+}
+
 .error {
-  color: #ff8f8f;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
   font-size: 14px;
+  font-weight: 600;
 }

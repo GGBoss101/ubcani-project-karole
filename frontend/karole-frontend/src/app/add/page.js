@@ -3,7 +3,15 @@
 import { useState, useSyncExternalStore } from "react";
 import { BACKEND_URI } from "../../lib/config";
 import { getErrorMessage } from "../../lib/api-error";
+import { normalizeYouTubeUrl } from "../../lib/youtube";
+import Image from "next/image";
+import Link from "next/link";
+import banner from "../../../assets/banner1.png";
 import Header from "../../components/header";
+import QueueItem from "../../components/queue-item";
+import { usePlaylist } from "../../lib/use-playlist";
+import { fetchQueueSettings, useQueueSettings } from "../../lib/use-queue-settings";
+import { describeLength, totalLength } from "../../lib/queue-time";
 import styles from "./page.module.css";
 
 const NAME_COOKIE = "karole-user-name";
@@ -30,6 +38,21 @@ function saveName(name) {
     document.cookie = `${NAME_COOKIE}=${encodeURIComponent(name)}; max-age=${NAME_COOKIE_SECONDS}; path=/; samesite=lax`;
 }
 
+// "Failed to fetch" means either the backend is down, or it crashed while looking the video
+// up (its error replies then lack the headers the browser needs to read them). Asking the
+// backend for /ping tells the two apart.
+async function explainFailedRequest() {
+    try {
+        const response = await fetch(`${BACKEND_URI}/ping`, { cache: "no-store" });
+        if (response.ok) {
+            return "The server couldn't look up that video. YouTube may be blocking lookups for a while, so try again in a few minutes.";
+        }
+    } catch {
+        // Falls through to the message below.
+    }
+    return "Can't reach the server right now. Please let the host know.";
+}
+
 function getServerAuthor() {
     return "";
 }
@@ -42,6 +65,10 @@ export default function AddSong() {
     const savedName = useSyncExternalStore(subscribeToSavedName, getSavedName, getServerAuthor);
     const name = savedName || submittedName || form.name;
     const hasSavedName = Boolean(savedName || submittedName);
+    const { upcoming, currentId, status: queueStatus } = usePlaylist();
+    const upNext = upcoming.slice(0, 4);
+    const queue = useQueueSettings();
+    const isClosed = queue.loaded && !queue.open;
 
     function updateField(event) {
         const { name, value } = event.target;
@@ -56,14 +83,27 @@ export default function AddSong() {
             return;
         }
 
+        const link = normalizeYouTubeUrl(form.url);
+        if (link.error) {
+            setStatus("error");
+            setMessage(link.error);
+            return;
+        }
+
         setStatus("loading");
         setMessage("");
 
         try {
+            // The host may have closed the queue since this page loaded.
+            const settings = await fetchQueueSettings().catch(() => ({ open: true }));
+            if (!settings.open) {
+                throw new Error("The queue just closed, so no more songs can be added right now.");
+            }
+
             const response = await fetch(`${BACKEND_URI}/playlist/add`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...form, name: name.trim() }),
+                body: JSON.stringify({ ...form, url: link.url, name: name.trim() }),
             });
             const result = await response.json().catch(() => null);
 
@@ -78,72 +118,131 @@ export default function AddSong() {
             setMessage(`Added "${result.url_title || "song"}" to the playlist.`);
         } catch (requestError) {
             setStatus("error");
-            setMessage(requestError.message);
+            setMessage(requestError instanceof TypeError ? await explainFailedRequest() : requestError.message);
         }
     }
 
     return (
         <main className={styles.page}>
             <Header />
-            <section className={styles.panel}>
-                <div className={styles.heading}>
-                    <p className={styles.eyebrow}>Add to playlist</p>
-                    <h1>Add a song</h1>
-                    <p className={styles.intro}>Add a YouTube track to the listening queue.</p>
-                </div>
+            {/* next/image serves this huge source file resized for each screen. */}
+            <Image
+                className={styles.hero}
+                src={banner}
+                alt="UBCAni anime club banner"
+                priority
+                placeholder="blur"
+                sizes="(max-width: 1168px) calc(100vw - 32px), 1120px"
+            />
+            <div className={styles.layout}>
+                <section className={styles.card}>
+                    <div className={styles.heading}>
+                        <p className={styles.eyebrow}>Join the queue</p>
+                        <h1>Add a song</h1>
+                        <p className={styles.intro}>Paste a YouTube link and you&apos;re in line to sing.</p>
+                    </div>
 
-                <form className={styles.form} onSubmit={handleSubmit}>
-                    <label className={styles.field}>
-                        <span>YouTube URL</span>
-                        <input
-                            name="url"
-                            type="url"
-                            value={form.url}
-                            onChange={updateField}
-                            placeholder="https://youtube.com/watch?v=..."
-                            maxLength={100}
-                            required
-                        />
-                    </label>
+                    {isClosed && (
+                        <div className={styles.closed} role="status">
+                            <strong>The queue is closed for now.</strong>
+                            <p>The host has stopped taking songs. Check back in a bit, or enjoy the show!</p>
+                        </div>
+                    )}
 
-                    <label className={styles.field}>
-                        <span>Your name</span>
-                        <input
-                            name="name"
-                            type="text"
-                            value={name}
-                            onChange={updateField}
-                            placeholder="Your name"
-                            maxLength={30}
-                            readOnly={hasSavedName}
-                            required
-                        />
-                    </label>
+                    <form className={styles.form} onSubmit={handleSubmit} hidden={isClosed}>
+                        <label className={styles.field}>
+                            <span>YouTube URL</span>
+                            <input
+                                name="url"
+                                type="text"
+                                inputMode="url"
+                                autoCapitalize="off"
+                                autoCorrect="off"
+                                spellCheck={false}
+                                value={form.url}
+                                onChange={updateField}
+                                placeholder="https://youtube.com/watch?v=..."
+                                required
+                            />
+                        </label>
 
-                    <label className={styles.field}>
-                        <span>Author name</span>
-                        <input
-                            name="author"
-                            type="text"
-                            value={form.author}
-                            onChange={updateField}
-                            placeholder="Song author"
-                            maxLength={30}
-                            required
-                        />
-                    </label>
+                        <div className={styles.row}>
+                            <label className={styles.field}>
+                                <span>Your name</span>
+                                <input
+                                    name="name"
+                                    type="text"
+                                    value={name}
+                                    onChange={updateField}
+                                    placeholder="Your name"
+                                    maxLength={30}
+                                    readOnly={hasSavedName}
+                                    required
+                                />
+                            </label>
 
-                    <button className={styles.submit} type="submit" disabled={status === "loading"}>
-                        {status === "loading" ? "Adding song..." : "Add to playlist"}
-                    </button>
+                            <label className={styles.field}>
+                                <span>Author name</span>
+                                <input
+                                    name="author"
+                                    type="text"
+                                    value={form.author}
+                                    onChange={updateField}
+                                    placeholder="Song author"
+                                    maxLength={30}
+                                    required
+                                />
+                            </label>
+                        </div>
 
-                    {message && (
-                        <p className={status === "error" ? styles.error : styles.success} role="status">
-                            {message}
+                        <button className={`button-primary ${styles.submit}`} type="submit" disabled={status === "loading"}>
+                            {status === "loading" ? "Adding song..." : "Add to playlist"}
+                        </button>
+
+                        {message && (
+                            <p className={status === "error" ? styles.error : styles.success} role="status">
+                                {message}
+                            </p>
+                        )}
+                    </form>
+                </section>
+
+                <aside className={styles.upNext} aria-label="Up next">
+                    <div className={styles.upNextHeading}>
+                        <h2>
+                            <span className={styles.liveDot} aria-hidden="true" />
+                            Up next
+                        </h2>
+                        <Link href="/playlist">Full queue</Link>
+                    </div>
+                    {upcoming.length > 0 && (
+                        <p className={styles.queueMessage}>
+                            {upcoming.length} {upcoming.length === 1 ? "song" : "songs"} · {describeLength(totalLength(upcoming))} of singing
                         </p>
                     )}
-                </form>
-            </section>
+                    {queueStatus === "loading" && <p className={styles.queueMessage}>Loading queue...</p>}
+                    {queueStatus === "error" && <p className={styles.queueMessage}>The queue is unavailable right now.</p>}
+                    {queueStatus === "ready" && upNext.length === 0 && (
+                        <p className={styles.queueMessage}>The queue is empty. Yours could be first!</p>
+                    )}
+                    {upNext.length > 0 && (
+                        <ol className={styles.queue}>
+                            {upNext.map((song, index) => (
+                                <QueueItem
+                                    key={song.p_id}
+                                    song={song}
+                                    position={index + 1}
+                                    nowPlaying={song.p_id === currentId}
+                                    compact
+                                />
+                            ))}
+                        </ol>
+                    )}
+                    {upcoming.length > upNext.length && (
+                        <p className={styles.queueMessage}>+{upcoming.length - upNext.length} more in the queue</p>
+                    )}
+                </aside>
+            </div>
         </main>
     );
 }

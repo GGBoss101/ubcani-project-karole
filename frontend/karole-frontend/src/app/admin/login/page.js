@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { BACKEND_URI } from "../../../lib/config";
+import logo from "../../../../assets/favicon.png";
 import styles from "./page.module.css";
 
 export default function AdminLogin() {
@@ -42,9 +44,10 @@ export default function AdminLogin() {
     return (
         <main className={styles.page}>
             <section className={styles.panel}>
-                <p className={styles.eyebrow}>Admin</p>
+                <Image className={styles.logo} src={logo} alt="" width={56} height={56} priority />
+                <p className={styles.eyebrow}>UBCANI Karole admin</p>
                 <h1>Sign in</h1>
-                <p className={styles.intro}>Admin authentication will connect to the API later.</p>
+                <p className={styles.intro}>Sign in to run the karaoke queue.</p>
                 <form className={styles.form} onSubmit={handleSubmit}>
                     <label className={styles.field}>
                         <span>Username</span>
@@ -60,7 +63,7 @@ export default function AdminLogin() {
                             required
                         />
                     </label>
-                    <button className={styles.submit} type="submit">Continue</button>
+                    <button className={`button-primary ${styles.submit}`} type="submit">Continue</button>
                     {error && <p className={styles.error} role="alert">{error}</p>}
                 </form>
             </section>
