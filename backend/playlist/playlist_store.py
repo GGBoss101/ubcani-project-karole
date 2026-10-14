@@ -17,6 +17,9 @@ class Playlist:
         self.songs: list[PlaylistEntry] = []
         self.current_song: PlaylistEntry | None = None
         self.playing = False
+        # True once playback has run past the last song. current_song then stays on that
+        # last song, so everything up to it counts as sung and new songs play next.
+        self.finished = False
 
     def renumber_and_log(self) -> None:
         # order_num always mirrors the position in the list, so it never has gaps or duplicates.
@@ -151,6 +154,7 @@ class Playlist:
         self.songs = []
         self.current_song = None
         self.playing = False
+        self.finished = False
         self.renumber_and_log()
 
     def requeue_songs_under_name(self, old_name_id: int, name_entry: NameEntry) -> None:
@@ -177,15 +181,29 @@ class Playlist:
         return {"playing": self.playing, "song": self.current_song}
 
     def select_song(self, index: int) -> None:
-        # Plays the song at this position, or stops playback when the position is outside the playlist.
+        # Plays the song at this position. Past the end it stops on the last song (see
+        # finished); before the start it stops with nothing selected.
+        self.finished = False
         if 0 <= index < len(self.songs):
             self.current_song = self.songs[index]
             self.playing = True
+        elif self.songs and index >= len(self.songs):
+            self.current_song = self.songs[-1]
+            self.playing = False
+            self.finished = True
         else:
             self.current_song = None
             self.playing = False
 
     def play_pause(self) -> bool:
+        current_index = self.find_current_index()
+        if self.finished and current_index is not None:
+            # Play starts the first song added since the queue ran out, or plays the last
+            # song again when nothing new has been added.
+            next_index = current_index + 1
+            self.select_song(next_index if next_index < len(self.songs) else current_index)
+            self.renumber_and_log()
+            return self.playing
         if self.current_song is None:
             if not self.songs:
                 return False
@@ -206,6 +224,9 @@ class Playlist:
         current_index = self.find_current_index()
         if current_index is None:
             self.select_song(len(self.songs) - 1)
+        elif self.finished:
+            # After the queue ran out, back replays the last song.
+            self.select_song(current_index)
         else:
             self.select_song(current_index - 1)
         self.renumber_and_log()

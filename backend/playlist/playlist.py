@@ -163,6 +163,11 @@ async def get_playlist() -> list[PlaylistEntry]:
 async def now_playing() -> PlaylistEntry | None:
     return playlist_store.current_song
 
+@router.get("/queue-finished")
+async def queue_finished() -> bool:
+    # True once playback has run past the last song; now-playing then still names that song.
+    return playlist_store.finished
+
 @router.get("/current-play", dependencies=[Depends(require_admin)])
 async def playing_song():
     return playlist_store.playback_state()
@@ -181,7 +186,7 @@ async def playback_source() -> dict[str, str | None]:
     return {"url": playback_url}
 
 @router.get("/playback-stream", dependencies=[Depends(require_admin)])
-async def playback_stream():
+async def playback_stream(start: float = 0):
     current_song = playlist_store.current_song
     if current_song is None:
         raise HTTPException(
@@ -197,12 +202,17 @@ async def playback_stream():
         prefetch_tasks.add(prefetch_task)
         prefetch_task.add_done_callback(prefetch_tasks.discard)
 
-    command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", video_url]
+    # "start" (seconds) begins the stream partway through, for when the player jumps ahead.
+    # The video then starts at the keyframe before that point; -copyts and delay_moov keep the
+    # real start times (as MP4 edit lists) so the player can place it on the timeline.
+    seek = ["-copyts", "-ss", str(start)] if start > 0 else []
+    command = ["ffmpeg", "-hide_banner", "-loglevel", "error", *seek, "-i", video_url]
     if audio_url:
-        command.extend(["-i", audio_url, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac"])
+        command.extend([*seek[1:], "-i", audio_url, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac"])
     else:
         command.extend(["-c", "copy"])
-    command.extend(["-f", "mp4", "-movflags", "frag_keyframe+empty_moov", "pipe:1"])
+    movflags = "frag_keyframe+empty_moov" + ("+delay_moov" if start > 0 else "")
+    command.extend(["-f", "mp4", "-movflags", movflags, "pipe:1"])
 
     async def stream():
         # stderr is discarded: nothing reads it, and a full pipe would stall ffmpeg.
