@@ -226,3 +226,46 @@
     justify-self: stretch;
   }
 }
+
+/* Shown when a first-time singer picks a name that's already in the queue. */
+.nameTaken {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--yellow);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  background: color-mix(in srgb, var(--yellow) 8%, transparent);
+}
+
+.nameTaken strong {
+  color: var(--yellow);
+}
+
+.nameTaken p {
+  color: var(--text-soft);
+  font-size: 15px;
+}
+
+.nameTakenActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.secondaryButton {
+  min-height: var(--tap);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 10px 20px;
+  background: transparent;
+  font-weight: 700;
+}
+
+.secondaryButton:hover {
+  border-color: var(--light-blue);
+  color: var(--light-blue);
+}
+
+.submit[hidden] {
+  display: none;
+}

@@ -65,7 +65,9 @@ export default function AddSong() {
     const savedName = useSyncExternalStore(subscribeToSavedName, getSavedName, getServerAuthor);
     const name = savedName || submittedName || form.name;
     const hasSavedName = Boolean(savedName || submittedName);
-    const { upcoming, currentId, status: queueStatus } = usePlaylist();
+    const { songs, upcoming, currentId, status: queueStatus } = usePlaylist();
+    // A first-time singer whose name is already in tonight's queue: asked whether it's them.
+    const [nameTaken, setNameTaken] = useState("");
     const upNext = upcoming.slice(0, 4);
     const queue = useQueueSettings();
     const isClosed = queue.loaded && !queue.open;
@@ -89,6 +91,19 @@ export default function AddSong() {
             setMessage(link.error);
             return;
         }
+
+        // The backend treats the same name as the same person, so a second person called "Dana"
+        // would share the first Dana's place in line. Someone adding their first song from this
+        // phone is asked first if the name is already in the queue.
+        const wanted = name.trim().toLowerCase();
+        const sameName = songs.some((song) => song.name.trim().toLowerCase() === wanted);
+        if (!hasSavedName && sameName && nameTaken !== name.trim()) {
+            setNameTaken(name.trim());
+            setStatus("idle");
+            setMessage("");
+            return;
+        }
+        setNameTaken("");
 
         setStatus("loading");
         setMessage("");
@@ -173,7 +188,10 @@ export default function AddSong() {
                                     name="name"
                                     type="text"
                                     value={name}
-                                    onChange={updateField}
+                                    onChange={(event) => {
+                                        setNameTaken("");
+                                        updateField(event);
+                                    }}
                                     placeholder="Your name"
                                     maxLength={30}
                                     readOnly={hasSavedName}
@@ -195,7 +213,36 @@ export default function AddSong() {
                             </label>
                         </div>
 
-                        <button className={`button-primary ${styles.submit}`} type="submit" disabled={status === "loading"}>
+                        {nameTaken && (
+                            <div className={styles.nameTaken} role="alert">
+                                <strong>Someone called &quot;{nameTaken}&quot; is already in the queue.</strong>
+                                <p>
+                                    If that&apos;s you, go ahead. If not, please use a different name, for example
+                                    with your last initial (&quot;{nameTaken} K&quot;), so your songs aren&apos;t mixed up.
+                                </p>
+                                <div className={styles.nameTakenActions}>
+                                    <button className="button-primary" type="submit">That&apos;s me, add my song</button>
+                                    <button
+                                        className={styles.secondaryButton}
+                                        type="button"
+                                        onClick={() => {
+                                            setNameTaken("");
+                                            setForm((currentForm) => ({ ...currentForm, name: "" }));
+                                            document.querySelector("input[name=name]")?.focus();
+                                        }}
+                                    >
+                                        Use a different name
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <button
+                            className={`button-primary ${styles.submit}`}
+                            type="submit"
+                            disabled={status === "loading"}
+                            hidden={Boolean(nameTaken)}
+                        >
                             {status === "loading" ? "Adding song..." : "Add to playlist"}
                         </button>
 
