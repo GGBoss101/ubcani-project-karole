@@ -1,6 +1,6 @@
 // A stand-in for the real backend, so the frontend can be clicked through without
 // MongoDB or YouTube. Everything lives in memory and resets when it stops.
-// Run with: npm run sample-backend   (admin login: admin / karole)
+// Run with: npm run sample-backend   (admin password: karole)
 import http from "node:http";
 
 const PORT = 8000;

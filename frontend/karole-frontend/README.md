@@ -121,7 +121,7 @@ Then open http://localhost:3000. Admin pages are under `/admin/login`.
 | `npm run dev` | Development server with live reload. |
 | `npm run build` then `npm start` | Production build, for real events. |
 | `npm run lint` | Check the code. |
-| `npm run sample-backend` | Fake backend on port 8000 (login `admin` / `karole`), when MongoDB isn't set up. |
+| `npm run sample-backend` | Fake backend on port 8000 (admin password `karole`), when MongoDB isn't set up. |
 
 ## Known limits
 
