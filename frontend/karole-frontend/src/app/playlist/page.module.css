@@ -75,9 +75,13 @@
   text-align: center;
 }
 
+/* The picture has empty space above Mei, so only its lower part is shown. */
 .emptyArt {
-  width: min(220px, 70%);
-  aspect-ratio: 4 / 3;
+  width: min(260px, 70%);
+  height: auto;
+  aspect-ratio: 1138 / 640;
+  object-fit: cover;
+  object-position: bottom;
 }
 
 .cta {

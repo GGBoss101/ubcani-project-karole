@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
+import mei from "../../../assets/Mei_NEW_cropped.png";
 import Header from "../../components/header";
 import QueueItem from "../../components/queue-item";
 import { usePlaylist } from "../../lib/use-playlist";
@@ -35,7 +37,7 @@ export default function Playlist() {
                 {status === "error" && <p className={styles.error}>{error}</p>}
                 {status === "ready" && songs.length === 0 && (
                     <div className={styles.empty}>
-                        <span className={`image-placeholder ${styles.emptyArt}`}>Illustration</span>
+                        <Image className={styles.emptyArt} src={mei} alt="Mei, the UBCAni mascot, waving" sizes="260px" />
                         <p>No songs in the playlist yet.</p>
                         <Link className={`button-primary ${styles.cta}`} href="/add">Add the first song</Link>
                     </div>
