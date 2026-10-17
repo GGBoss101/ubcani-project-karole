@@ -7,6 +7,22 @@ import time
 
 from models import NameEntry, PlaylistEntry
 
+# How long a person's later songs wait at the back of the queue, in seconds: the 2nd song
+# 10 minutes, each one after that 5 more, never more than 30 minutes.
+SECOND_SONG_DELAY = 10 * 60
+EXTRA_SONG_DELAY = 5 * 60
+MAX_SONG_DELAY = 30 * 60
+
+
+def line_up_time(priority: int, added_time: float) -> float:
+    # priority is which of the person's songs this is tonight: 1 for their first, 2 for the
+    # second, and so on.
+    if priority <= 1:
+        return added_time
+    delay = SECOND_SONG_DELAY + EXTRA_SONG_DELAY * (priority - 2)
+    return added_time + min(delay, MAX_SONG_DELAY)
+
+
 # One JSON object per line, appended after every change.
 PLAYLIST_LOG_PATH = os.path.join(os.path.dirname(__file__), "playlist_log.jsonl")
 
@@ -78,28 +94,23 @@ class Playlist:
                 highest_priority = song.priority_num
         return highest_priority
 
-    def find_insert_index(self, priority: int) -> int:
-        # When the playing song is from a later priority round than the new song, the
-        # usual spot below is already behind it and would never be reached, so the
-        # new song plays next instead.
+    def find_insert_index(self, priority: int, added_time: float) -> int:
+        # Songs line up by when they were added plus a delay that grows with how many songs
+        # that person already has queued (see line_up_time). A person's 2nd song is held at
+        # the back for 10 minutes, letting everyone who adds a song meanwhile go ahead; after
+        # that its place is fixed. New songs never go before the song playing now (or the
+        # last one sung), and songs the admin moved by hand keep their places.
+        new_line_up = line_up_time(priority, added_time)
         current_index = self.find_current_index()
-        if current_index is not None and self.songs[current_index].priority_num > priority:
-            return current_index + 1
-
-        # Otherwise a song goes right after the last song of its own priority round, or
-        # of the closest lower round when its own round has no songs yet.
-        insert_index = 0
-        closest_priority = None
-        for index, song in enumerate(self.songs):
-            if song.priority_num > priority:
-                continue
-            if closest_priority is None or song.priority_num >= closest_priority:
-                closest_priority = song.priority_num
-                insert_index = index + 1
-        return insert_index
+        start = current_index + 1 if current_index is not None else 0
+        for index in range(start, len(self.songs)):
+            song = self.songs[index]
+            if line_up_time(song.priority_num, song.time) > new_line_up:
+                return index
+        return len(self.songs)
 
     def add_song(self, song_info: dict, priority: int) -> PlaylistEntry:
-        insert_index = self.find_insert_index(priority)
+        insert_index = self.find_insert_index(priority, song_info["time"])
         song = PlaylistEntry(
             **song_info,
             p_id=self.next_p_id(),
@@ -174,7 +185,7 @@ class Playlist:
                 continue
             self.songs.pop(self.find_index(song.p_id))
             song.priority_num = self.find_priority_for_name(name_entry.name_id) + 1
-            self.songs.insert(self.find_insert_index(song.priority_num), song)
+            self.songs.insert(self.find_insert_index(song.priority_num, song.time), song)
         self.renumber_and_log()
 
     def playback_state(self) -> dict:
