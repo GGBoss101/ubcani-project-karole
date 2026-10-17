@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from database import client
 from models import NameChange, NameInput, NameEntry, OperationInput
 from pending_operation import pending_operation
+from playlist.playlist_store import playlist_store
 from auth import require_admin
 import pymongo, pymongo.errors
 from rapidfuzz import fuzz
@@ -101,6 +102,10 @@ async def name_to_alt(body: NameChange) -> NameEntry:
     if (name_ret == None):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Name not found")
     name_ent = await col.find_one_and_delete({"name": body.name_alt})
+    # The merged name's queued songs now belong to this person: queue them again as their
+    # next songs, the same as matching a pending operation does.
+    if name_ent is not None:
+        playlist_store.requeue_songs_under_name(name_ent["name_id"], NameEntry(**name_ret))
     return NameEntry(**name_ret)
 
 @router.post("/to_name")

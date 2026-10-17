@@ -171,17 +171,23 @@ class Playlist:
     def requeue_songs_under_name(self, old_name_id: int, name_entry: NameEntry) -> None:
         # Punish mode: when a name is merged into another, its songs lose their places
         # and are queued again, oldest first, as new songs of the name they now belong to.
+        # Songs already sung (and the one playing now) only change name: moving the playing
+        # song would make skip jump over everything in between, and moving a sung one back
+        # into the queue would play it again.
+        current_index = self.find_current_index()
+        sung = set()
         songs_to_requeue = []
-        for song in self.songs:
+        for index, song in enumerate(self.songs):
             if song.name_id == old_name_id:
                 songs_to_requeue.append(song)
+                if current_index is not None and index <= current_index:
+                    sung.add(song.p_id)
         songs_to_requeue.sort(key=lambda song: song.time)
 
         for song in songs_to_requeue:
             song.name_id = name_entry.name_id
             song.name = name_entry.name
-            if song is self.current_song:
-                # Moving the playing song would make skip jump over everything in between.
+            if song.p_id in sung:
                 continue
             self.songs.pop(self.find_index(song.p_id))
             song.priority_num = self.find_priority_for_name(name_entry.name_id) + 1
