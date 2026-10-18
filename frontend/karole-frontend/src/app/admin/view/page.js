@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
 import { statusMessage } from "../../../lib/api-error";
@@ -16,6 +16,10 @@ export default function AdminView() {
     // "window" when the Karole YouTube Controller extension is installed (songs play in a
     // real YouTube window), "stream" for the built-in player, null while checking.
     const [mode, setMode] = useState(null);
+    // Goes up with every button press. A status check that was already on its way when a button
+    // was pressed may carry the state from before it (over a slow link it can arrive after the
+    // press is done), so its answer is ignored rather than undoing the press.
+    const controlCount = useRef(0);
 
     useEffect(() => {
         detectExtension().then((version) => setMode(version ? "window" : "stream"));
@@ -25,6 +29,7 @@ export default function AdminView() {
         let isActive = true;
 
         async function pollPlayback() {
+            const startedAt = controlCount.current;
             try {
                 const response = await adminFetch(`${BACKEND_URI}/playlist/current-play`, { cache: "no-store" });
                 if (!response.ok) {
@@ -34,7 +39,7 @@ export default function AdminView() {
                 // Once the queue has run out the backend still names the last song; show the
                 // waiting screen instead of that song paused at its end.
                 const finished = await fetchQueueFinished();
-                if (isActive) {
+                if (isActive && startedAt === controlCount.current) {
                     setPlayback(finished ? { playing: false, song: null } : nextPlayback);
                     setError("");
                 }
@@ -52,9 +57,16 @@ export default function AdminView() {
     }, []);
 
     const control = useCallback(async (path) => {
+        controlCount.current += 1;
+        if (path === "play_pause") {
+            // Play/pause shows on screen straight away instead of after the backend answers.
+            setPlayback((current) => ({ ...current, playing: !current.playing }));
+        }
         try {
             const response = await adminFetch(`${BACKEND_URI}/playlist/${path}`, { method: "POST" });
             const nextPlayback = await response.json().catch(() => null);
+            // Checks sent while the press was on its way can predate it too.
+            controlCount.current += 1;
             if (!response.ok) {
                 throw new Error(nextPlayback?.detail || statusMessage(response.status));
             }

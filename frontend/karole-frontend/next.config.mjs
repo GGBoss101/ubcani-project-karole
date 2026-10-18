@@ -6,9 +6,9 @@ const nextConfig = {
   // site at /backend/playlist/ (see src/app/backend). Next.js would otherwise redirect those
   // to the address without the slash first.
   skipTrailingSlashRedirect: true,
-  // `npm run dev` only serves its scripts to localhost unless an address is listed here, and
-  // the site is shared over Tailscale Funnel at this address.
-  allowedDevOrigins: ["dhairyas-macbook-pro.tail512d14.ts.net"],
+  // `npm run dev` only serves its scripts to localhost unless an address is listed here: the
+  // site is shared over Tailscale Funnel at the first, and opened as 127.0.0.1 on this Mac.
+  allowedDevOrigins: ["dhairyas-macbook-pro.tail512d14.ts.net", "127.0.0.1"],
 };
 
 export default nextConfig;

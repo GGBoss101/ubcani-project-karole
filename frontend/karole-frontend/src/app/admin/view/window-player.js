@@ -283,9 +283,27 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
                         >
                             YouTube controls: {showControls ? "shown" : "hidden"}
                         </button>
-                        <button type="button" className={styles.iconButton} onClick={openWindow} disabled={!song}>
-                            {state === "closed" ? "Open YouTube window" : "Reload video"}
+                        <button
+                            type="button"
+                            className={styles.iconButton}
+                            onClick={openWindow}
+                            disabled={!song || state === "closed"}
+                        >
+                            Reload video
                         </button>
+                        {state === "closed" ? (
+                            <button type="button" className={styles.iconButton} onClick={openWindow} disabled={!song}>
+                                Open YouTube window
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                className={styles.iconButton}
+                                onClick={() => sendToExtension({ type: "close" })}
+                            >
+                                Close YouTube window
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
