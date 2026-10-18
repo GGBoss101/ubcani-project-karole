@@ -262,3 +262,33 @@
     min-height: var(--tap);
   }
 }
+
+.combineQueues {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 28px;
+  max-width: 640px;
+  cursor: pointer;
+}
+
+.combineQueues input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--aqua);
+}
+
+.combineQueues span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.combineQueues strong {
+  color: var(--text);
+  font-weight: 600;
+}

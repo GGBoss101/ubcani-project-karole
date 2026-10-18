@@ -92,7 +92,7 @@ async def get_names() -> list[NameEntry]:
     return names
 
 @router.post("/to_alt")
-async def name_to_alt(body: NameChange) -> NameEntry:
+async def name_to_alt(body: NameChange, combine_queues: bool = True) -> NameEntry:
     name_ent = await col.find_one({"name": body.name_alt})
     if (name_ent == None):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alt name not found")
@@ -103,9 +103,10 @@ async def name_to_alt(body: NameChange) -> NameEntry:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Name not found")
     name_ent = await col.find_one_and_delete({"name": body.name_alt})
     # The merged name's queued songs now belong to this person: queue them again as their
-    # next songs, the same as matching a pending operation does.
+    # next songs (or, with combine_queues off, only relabel them), the same as matching a
+    # pending operation does.
     if name_ent is not None:
-        playlist_store.requeue_songs_under_name(name_ent["name_id"], NameEntry(**name_ret))
+        playlist_store.requeue_songs_under_name(name_ent["name_id"], NameEntry(**name_ret), combine_queues)
     return NameEntry(**name_ret)
 
 @router.post("/to_name")

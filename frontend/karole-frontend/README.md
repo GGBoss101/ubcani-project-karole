@@ -43,9 +43,10 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
 
 ## How the pieces talk to each other
 
-- **Backend address.** `src/lib/config.js` points the browser at `http://<same host>:8000`.
-  This only works when the site and backend run on the same machine; going online needs a
-  proxy (see "Going online").
+- **Backend address.** The browser only talks to this site: everything under `/backend` is
+  passed on to the backend at `http://127.0.0.1:8000` (`src/app/backend/[...path]/route.js`,
+  address in `src/lib/backend-address.js`). So phones on the same Wi-Fi only need the site's
+  address, and the admin login cookie belongs to the site.
 - **Live updates are polling, not websockets.** The queue pages refresh every 5 seconds
   (`lib/use-playlist.js`), the queue switch every 5 seconds (`lib/use-queue-settings.js`),
   and the player page asks what is playing every 0.5 seconds.
@@ -130,5 +131,5 @@ Then open http://localhost:3000. Admin pages are under `/admin/login`.
   backend a cookies file through `YTDLP_COOKIE_FILE` in `backend/.env` fixes that.
 - The queue switch only hides the form; someone calling the backend directly could still add songs.
 - Going online: the backend should stay on a home or campus connection (YouTube blocks cloud
-  servers), published with something like Cloudflare Tunnel, and the site should pass
-  backend requests through itself instead of using port 8000.
+  servers), published with something like Cloudflare Tunnel. The site already passes backend requests
+  through itself, so only the site needs to be published.

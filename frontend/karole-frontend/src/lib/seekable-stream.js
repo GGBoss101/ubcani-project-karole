@@ -277,7 +277,8 @@ export function rangeAt(video, time) {
 // Starts playback of `url` in `video`. Returns a function that stops all downloads.
 // `durationHint` (seconds) lets the seek bar show the full length before the download ends.
 // `onFallback` is called when this browser can't do it, after switching to a plain stream.
-export function attachSeekableStream(video, url, { durationHint, onFallback } = {}) {
+// `onFailure` is called when the song can't be loaded at all (the server sent nothing).
+export function attachSeekableStream(video, url, { durationHint, onFallback, onFailure } = {}) {
     const MediaSourceType = window.ManagedMediaSource || window.MediaSource;
     if (!MediaSourceType) {
         video.src = url;
@@ -414,6 +415,12 @@ export function attachSeekableStream(video, url, { durationHint, onFallback } = 
                     current = null;
                     fillNextGap();
                 }
+                return;
+            }
+            if (!buffer) {
+                // Nothing arrived, so a plain stream would fail the same way.
+                stop();
+                onFailure?.(error.message);
                 return;
             }
             const detail = video.error?.message || error.message;

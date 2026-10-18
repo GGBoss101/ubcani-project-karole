@@ -3,11 +3,11 @@
 // Note this is a switch for the site, not a lock: the backend itself still accepts songs.
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { BACKEND_ADDRESSES } from "../../../lib/backend-address";
 
 const SETTINGS_FILE = path.join(process.cwd(), ".karole-settings.json");
-// The admin login cookie set by the backend; browsers send it to every localhost port.
+// The admin login cookie set by the backend (through /backend, so it belongs to this site).
 const ADMIN_COOKIE = "karole_admin_token";
-const BACKEND_URI = "http://127.0.0.1:8000";
 
 async function readSettings() {
     try {
@@ -27,16 +27,22 @@ export async function POST(request) {
     if (!token) {
         return Response.json({ detail: "Not logged in" }, { status: 401 });
     }
-    try {
-        const check = await fetch(`${BACKEND_URI}/playlist/current-play`, {
-            headers: { Cookie: `${ADMIN_COOKIE}=${token}` },
-            cache: "no-store",
-        });
-        if (!check.ok) {
-            return Response.json({ detail: "Not logged in" }, { status: 401 });
-        }
-    } catch {
+    // Each backend address in turn, as /backend does.
+    let check;
+    for (const address of BACKEND_ADDRESSES) {
+        try {
+            check = await fetch(`${address}/playlist/current-play`, {
+                headers: { Cookie: `${ADMIN_COOKIE}=${token}` },
+                cache: "no-store",
+            });
+            break;
+        } catch {}
+    }
+    if (!check) {
         return Response.json({ detail: "The backend is not reachable" }, { status: 502 });
+    }
+    if (!check.ok) {
+        return Response.json({ detail: "Not logged in" }, { status: 401 });
     }
 
     const body = await request.json().catch(() => null);

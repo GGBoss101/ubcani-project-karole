@@ -13,7 +13,7 @@ export default function Header() {
         <header className={styles.header}>
             <Link className={styles.brand} href="/add">
                 <Image className={styles.logo} src={logo} alt="" width={34} height={34} priority />
-                <span>UBCANI Karole</span>
+                <span>UBCANI</span>
             </Link>
             <nav className={styles.nav} aria-label="Main navigation">
                 <Link className={pathname === "/add" ? styles.active : ""} href="/add">

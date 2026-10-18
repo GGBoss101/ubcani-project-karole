@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
-import { getErrorMessage } from "../../../lib/api-error";
+import { getErrorMessage, statusMessage } from "../../../lib/api-error";
+import { loadCombineQueues, saveCombineQueues } from "../../../lib/merge-queues";
 import AdminHeader from "../../../components/admin-header";
 import shared from "../admin.module.css";
 import styles from "./page.module.css";
@@ -17,6 +18,7 @@ export default function AdminNames() {
     const [message, setMessage] = useState("");
     const [draggedName, setDraggedName] = useState("");
     const [draggedIsPrimary, setDraggedIsPrimary] = useState(false);
+    const [combineQueues, setCombineQueues] = useState(true);
 
     // Names matching the search (the main name or any alternate), alphabetical.
     const query = search.trim().toLowerCase();
@@ -27,7 +29,7 @@ export default function AdminNames() {
     async function loadNames() {
         try {
             const response = await adminFetch(`${BACKEND_URI}/names/`, { cache: "no-store" });
-            if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+            if (!response.ok) throw new Error(statusMessage(response.status));
             setNames(await response.json());
             setStatus("ready");
         } catch (requestError) {
@@ -38,7 +40,13 @@ export default function AdminNames() {
 
     useEffect(() => {
         Promise.resolve().then(loadNames);
+        Promise.resolve().then(() => setCombineQueues(loadCombineQueues()));
     }, []);
+
+    function changeCombineQueues(combine) {
+        setCombineQueues(combine);
+        saveCombineQueues(combine);
+    }
 
     async function request(url, options = {}) {
         setError("");
@@ -114,7 +122,7 @@ export default function AdminNames() {
 
     async function convertToAlternative(targetName) {
         if (!draggedName || !draggedIsPrimary || draggedName === targetName) return;
-        await request("/names/to_alt", {
+        await request(`/names/to_alt?combine_queues=${combineQueues}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: targetName, name_alt: draggedName }),
@@ -262,6 +270,20 @@ export default function AdminNames() {
                         </table>
                     </div>
                 )}
+
+                <label className={styles.combineQueues}>
+                    <input
+                        type="checkbox"
+                        checked={combineQueues}
+                        onChange={(event) => changeCombineQueues(event.target.checked)}
+                    />
+                    <span>
+                        <strong>Combine queues when merging names</strong>
+                        {combineQueues
+                            ? "The merged name's waiting songs go to the back as that person's next songs."
+                            : "The merged name's songs keep their places and only change name."}
+                    </span>
+                </label>
 
                 <p className={styles.hint}>Drag a name onto an action, or tap a name to choose what to do with it.</p>
                 <div className={styles.dropZones}>

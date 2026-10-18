@@ -14,7 +14,7 @@ export default function AdminHeader() {
         <header className={styles.header}>
             <Link className={styles.brand} href="/admin/playlist">
                 <Image className={styles.logo} src={logo} alt="" width={34} height={34} priority />
-                <span>UBCANI Karole</span>
+                <span>UBCANI</span>
                 <span className={styles.badge}>Admin</span>
             </Link>
             <nav className={styles.nav} aria-label="Admin navigation">

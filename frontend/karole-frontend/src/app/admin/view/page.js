@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
+import { statusMessage } from "../../../lib/api-error";
 import { fetchQueueFinished } from "../../../lib/use-playlist";
 import { detectExtension } from "../../../lib/youtube-window";
 import StreamPlayer from "./stream-player";
@@ -27,7 +28,7 @@ export default function AdminView() {
             try {
                 const response = await adminFetch(`${BACKEND_URI}/playlist/current-play`, { cache: "no-store" });
                 if (!response.ok) {
-                    throw new Error(`Request failed with status ${response.status}`);
+                    throw new Error(statusMessage(response.status));
                 }
                 const nextPlayback = await response.json();
                 // Once the queue has run out the backend still names the last song; show the
@@ -55,7 +56,7 @@ export default function AdminView() {
             const response = await adminFetch(`${BACKEND_URI}/playlist/${path}`, { method: "POST" });
             const nextPlayback = await response.json().catch(() => null);
             if (!response.ok) {
-                throw new Error(nextPlayback?.detail || `Request failed with status ${response.status}`);
+                throw new Error(nextPlayback?.detail || statusMessage(response.status));
             }
             if (path === "play_pause") {
                 setPlayback((current) => ({ ...current, playing: nextPlayback }));

@@ -160,6 +160,32 @@
   text-align: center;
 }
 
+/* A song that can't be loaded: shown over the middle of the video so it can't be missed. */
+.failed {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: min(480px, calc(100vw - 32px));
+  padding: 18px 20px;
+  background: var(--navy);
+  border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+.retry {
+  margin-top: 10px;
+  min-height: 40px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0 18px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .hint {
   max-width: 420px;
   font-size: 13px;

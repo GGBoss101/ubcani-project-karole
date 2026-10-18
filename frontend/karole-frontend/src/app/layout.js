@@ -14,7 +14,7 @@ const body = Figtree({
 });
 
 export const metadata = {
-  title: "UBCANI Karole",
+  title: "UBCANI Kareoke",
   description: "Kareoke Manager!",
 };
 

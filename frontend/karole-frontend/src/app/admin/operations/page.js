@@ -6,6 +6,8 @@ import { adminFetch } from "../../../lib/admin-auth";
 import AdminHeader from "../../../components/admin-header";
 import shared from "../admin.module.css";
 import styles from "./page.module.css";
+import { getErrorMessage, statusMessage } from "../../../lib/api-error";
+import { loadCombineQueues } from "../../../lib/merge-queues";
 
 export default function AdminOperations() {
     const [operations, setOperations] = useState([]);
@@ -16,7 +18,7 @@ export default function AdminOperations() {
     async function loadOperations() {
         try {
             const response = await adminFetch(`${BACKEND_URI}/operation/`, { cache: "no-store" });
-            if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+            if (!response.ok) throw new Error(statusMessage(response.status));
             setOperations(await response.json());
             setStatus("ready");
         } catch (requestError) {
@@ -34,14 +36,16 @@ export default function AdminOperations() {
         setError("");
         setMessage("");
         try {
-            const response = await adminFetch(`${BACKEND_URI}${url}`, {
+            // Matching merges two names, so it follows the Names page's combine queues setting.
+            const query = url.includes("handle") ? `?combine_queues=${loadCombineQueues()}` : "";
+            const response = await adminFetch(`${BACKEND_URI}${url}${query}`, {
                 method: url.includes("delete") ? "DELETE" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ po_id: operationId }),
             });
             const result = await response.json().catch(() => null);
             if (!response.ok) {
-                throw new Error(result?.detail || `Request failed with status ${response.status}`);
+                throw new Error(getErrorMessage(result, response));
             }
             await loadOperations();
             setMessage(url.includes("handle") ? "Operation matched." : "Operation ignored.");
@@ -55,7 +59,7 @@ export default function AdminOperations() {
         setError("");
         try {
             const response = await adminFetch(`${BACKEND_URI}/operation/flush`, { method: "DELETE" });
-            if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+            if (!response.ok) throw new Error(statusMessage(response.status));
             await loadOperations();
             setMessage("All pending operations ignored.");
         } catch (requestError) {
@@ -68,12 +72,12 @@ export default function AdminOperations() {
         setError("");
         setMessage("");
         try {
-            const response = await adminFetch(`${BACKEND_URI}/operation/handle_all`, {
+            const response = await adminFetch(`${BACKEND_URI}/operation/handle_all?combine_queues=${loadCombineQueues()}`, {
                 method: "POST",
             });
             const result = await response.json().catch(() => null);
             if (!response.ok) {
-                throw new Error(result?.detail || `Request failed with status ${response.status}`);
+                throw new Error(getErrorMessage(result, response));
             }
             await loadOperations();
             setMessage(`Matched ${result.length} pending operation${result.length === 1 ? "" : "s"}.`);

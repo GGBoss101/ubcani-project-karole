@@ -138,7 +138,8 @@ async def add_song(body: PlaylistInput):
     playlist_entry = {
         "name_id": name_result["entry"].name_id,
         "time": date,
-        "name": name_result["entry"].name,
+        # Shown as typed, even when it is an alternate name of someone already known.
+        "name": body.name,
         "author": body.author,
         "service": body.service,
         "url": body.url,

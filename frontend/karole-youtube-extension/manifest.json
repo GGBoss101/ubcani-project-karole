@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Karole YouTube Controller",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Lets the Karole player page open YouTube in its own window and control what plays there.",
   "permissions": [
     "storage"
@@ -13,7 +13,8 @@
     {
       "matches": [
         "http://localhost/*",
-        "http://localhost:3000/*"
+        "http://localhost:3000/*",
+        "https://dhairyas-macbook-pro.tail512d14.ts.net/*"
       ],
       "js": [
         "site-bridge.js"

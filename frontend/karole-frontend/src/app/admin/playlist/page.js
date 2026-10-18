@@ -10,6 +10,7 @@ import { fetchQueueFinished } from "../../../lib/use-playlist";
 import { formatLength, totalLength } from "../../../lib/queue-time";
 import shared from "../admin.module.css";
 import styles from "./page.module.css";
+import { getErrorMessage, statusMessage } from "../../../lib/api-error";
 
 // Shows a length in seconds as minutes:seconds, for example 3725 becomes "62:05".
 function formatDuration(totalSeconds) {
@@ -55,7 +56,7 @@ export default function AdminPlaylist() {
                 const playbackResponse = await adminFetch(`${BACKEND_URI}/playlist/current-play`, { cache: "no-store" });
                 const response = await adminFetch(`${BACKEND_URI}/playlist/`, { cache: "no-store" });
                 if (!playbackResponse.ok || !response.ok) {
-                    throw new Error(`Request failed with status ${response.status}`);
+                    throw new Error(statusMessage(response.status));
                 }
                 const nextPlayback = await playbackResponse.json();
                 const playlist = await response.json();
@@ -86,7 +87,7 @@ export default function AdminPlaylist() {
     async function refreshPlaylist() {
         const response = await adminFetch(`${BACKEND_URI}/playlist/`, { cache: "no-store" });
         if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`);
+            throw new Error(statusMessage(response.status));
         }
         setSongs((await response.json()).sort((first, second) => first.order_num - second.order_num));
         // Deleting or re-queueing songs can change what is playing.
@@ -96,7 +97,7 @@ export default function AdminPlaylist() {
     async function refreshPlayback() {
         const response = await adminFetch(`${BACKEND_URI}/playlist/current-play`, { cache: "no-store" });
         if (!response.ok) {
-            throw new Error(`Request failed with status ${response.status}`);
+            throw new Error(statusMessage(response.status));
         }
         setPlayback(await response.json());
         setFinished(await fetchQueueFinished());
@@ -109,7 +110,7 @@ export default function AdminPlaylist() {
             const response = await adminFetch(`${BACKEND_URI}/playlist/${path}`, { method: "POST" });
             const result = await response.json().catch(() => null);
             if (!response.ok) {
-                throw new Error(result?.detail || `Request failed with status ${response.status}`);
+                throw new Error(getErrorMessage(result, response));
             }
             await refreshPlayback();
         } catch (requestError) {
@@ -123,7 +124,7 @@ export default function AdminPlaylist() {
             const response = await adminFetch(`${BACKEND_URI}${url}`, options);
             const result = await response.json().catch(() => null);
             if (!response.ok) {
-                throw new Error(result?.detail || `Request failed with status ${response.status}`);
+                throw new Error(getErrorMessage(result, response));
             }
             await refreshPlaylist();
             setOpenMenu(null);
@@ -142,7 +143,7 @@ export default function AdminPlaylist() {
             });
             const result = await response.json().catch(() => null);
             if (!response.ok) {
-                throw new Error(result?.detail || `Request failed with status ${response.status}`);
+                throw new Error(getErrorMessage(result, response));
             }
             setPlayback(result);
             setFinished(false);

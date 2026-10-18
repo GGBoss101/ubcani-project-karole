@@ -23,7 +23,8 @@ click "Reconnect the YouTube window", or reload the player page.
 
 1. Sign in to YouTube in that Chrome. Age-restricted videos need a signed-in account, and
    YouTube Premium removes ads.
-2. Open the player page at **http://localhost:3000/admin/view**. Use `localhost`, not
+2. Open the player page at **http://localhost:3000/admin/view**, or at the Tailscale address
+   (https://dhairyas-macbook-pro.tail512d14.ts.net/admin/view). Use `localhost`, not
    `127.0.0.1`; the extension only works on the addresses listed in `manifest.json`.
 3. When the page finds the extension, it says "Video plays in the YouTube window", and as soon
    as a song is up it opens a YouTube window showing only the video.

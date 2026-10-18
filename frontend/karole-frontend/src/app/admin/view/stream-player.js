@@ -11,6 +11,9 @@ import styles from "./page.module.css";
 export default function StreamPlayer({ song, playing, onEnded, onError }) {
     const videoRef = useRef(null);
     const [notice, setNotice] = useState("");
+    // Set when the song can't be loaded at all; "Try again" bumps attempt to load it afresh.
+    const [failed, setFailed] = useState(false);
+    const [attempt, setAttempt] = useState(0);
     // How far the song has downloaded from where it is playing; jumps within that are instant.
     const [download, setDownload] = useState(null);
     const songId = song.p_id;
@@ -24,11 +27,13 @@ export default function StreamPlayer({ song, playing, onEnded, onError }) {
         const video = videoRef.current;
         if (!video) return;
         setNotice("");
+        setFailed(false);
         return attachSeekableStream(video, source, {
             durationHint: songDuration,
             onFallback: setNotice,
+            onFailure: () => setFailed(true),
         });
-    }, [source, songId, songDuration]);
+    }, [source, songId, songDuration, attempt]);
 
     useEffect(() => {
         const timer = window.setInterval(() => {
@@ -40,7 +45,7 @@ export default function StreamPlayer({ song, playing, onEnded, onError }) {
         return () => window.clearInterval(timer);
     }, []);
 
-    // songId is a dependency because every song gets a fresh <video> element
+    // songId and attempt are dependencies because each gets a fresh <video> element
     // (see the key below), and that new element has to be started too.
     useEffect(() => {
         const video = videoRef.current;
@@ -50,12 +55,12 @@ export default function StreamPlayer({ song, playing, onEnded, onError }) {
         } else {
             video.pause();
         }
-    }, [playing, songId, onError]);
+    }, [playing, songId, attempt, onError]);
 
     return (
         <>
             <video
-                key={songId}
+                key={`${songId}-${attempt}`}
                 ref={videoRef}
                 className={styles.player}
                 title={song.url_title}
@@ -63,9 +68,22 @@ export default function StreamPlayer({ song, playing, onEnded, onError }) {
                 preload="auto"
                 controls
                 onEnded={onEnded}
+                onError={() => setFailed(true)}
             />
             {download && <p className={styles.download}>Downloaded up to {formatLength(download.loaded)}</p>}
-            {notice && <p className={styles.notice} role="status">{notice}</p>}
+            {failed ? (
+                <div className={`${styles.notice} ${styles.failed}`} role="alert">
+                    <p>
+                        This video couldn&apos;t be loaded. YouTube may be blocking the server for a while,
+                        or the video may be private or removed. Skip to the next song, or try again.
+                    </p>
+                    <button type="button" className={styles.retry} onClick={() => setAttempt(attempt + 1)}>
+                        Try again
+                    </button>
+                </div>
+            ) : (
+                notice && <p className={styles.notice} role="status">{notice}</p>
+            )}
         </>
     );
 }

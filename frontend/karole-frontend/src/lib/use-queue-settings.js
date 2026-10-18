@@ -1,11 +1,12 @@
 // Whether the queue is taking new songs (see app/api/queue-settings/route.js).
 import { useCallback, useEffect, useState } from "react";
+import { getErrorMessage, statusMessage } from "./api-error";
 
 const REFRESH_MS = 5000;
 
 export async function fetchQueueSettings() {
     const response = await fetch("/api/queue-settings", { cache: "no-store" });
-    if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+    if (!response.ok) throw new Error(statusMessage(response.status));
     return response.json();
 }
 
@@ -33,7 +34,7 @@ export function useQueueSettings() {
             body: JSON.stringify({ open }),
         });
         const result = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(result?.detail || `Request failed with status ${response.status}`);
+        if (!response.ok) throw new Error(getErrorMessage(result, response));
         setSettings({ ...result, loaded: true });
     }
 

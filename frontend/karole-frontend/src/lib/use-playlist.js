@@ -2,6 +2,7 @@
 // The playlist keeps songs that were already sung, so this also finds the one playing now.
 import { useEffect, useState } from "react";
 import { BACKEND_URI } from "./config";
+import { statusMessage } from "./api-error";
 
 const REFRESH_MS = 5000;
 
@@ -34,7 +35,7 @@ export function usePlaylist() {
                     fetchQueueFinished(),
                 ]);
                 if (!response.ok) {
-                    throw new Error(`Request failed with status ${response.status}`);
+                    throw new Error(statusMessage(response.status));
                 }
                 const playlist = await response.json();
                 const nowPlaying = nowPlayingResponse.ok ? await nowPlayingResponse.json().catch(() => null) : null;

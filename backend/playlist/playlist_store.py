@@ -168,10 +168,11 @@ class Playlist:
         self.finished = False
         self.renumber_and_log()
 
-    def requeue_songs_under_name(self, old_name_id: int, name_entry: NameEntry) -> None:
+    def requeue_songs_under_name(self, old_name_id: int, name_entry: NameEntry, combine_queues: bool = True) -> None:
         # Punish mode: when a name is merged into another, its songs lose their places
         # and are queued again, oldest first, as new songs of the name they now belong to.
-        # Songs already sung (and the one playing now) only change name: moving the playing
+        # With combine_queues off, every song only changes owner and keeps its place.
+        # Songs already sung (and the one playing now) only change owner: moving the playing
         # song would make skip jump over everything in between, and moving a sung one back
         # into the queue would play it again.
         current_index = self.find_current_index()
@@ -185,9 +186,9 @@ class Playlist:
         songs_to_requeue.sort(key=lambda song: song.time)
 
         for song in songs_to_requeue:
+            # Only the owner changes: the song keeps showing the name it was added under.
             song.name_id = name_entry.name_id
-            song.name = name_entry.name
-            if song.p_id in sung:
+            if song.p_id in sung or not combine_queues:
                 continue
             self.songs.pop(self.find_index(song.p_id))
             song.priority_num = self.find_priority_for_name(name_entry.name_id) + 1
