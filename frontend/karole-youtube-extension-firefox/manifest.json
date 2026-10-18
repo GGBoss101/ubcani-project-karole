@@ -1,0 +1,48 @@
+{
+  "manifest_version": 2,
+  "name": "Karole YouTube Controller",
+  "version": "1.5.1",
+  "description": "Lets the Karole player page open YouTube in its own window and control what plays there.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "karole-youtube-controller@ubcani.com",
+      "strict_min_version": "115.0"
+    }
+  },
+  "permissions": [
+    "storage",
+    "https://www.youtube.com/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": false
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://localhost:3000/*",
+        "https://dhairyas-macbook-pro.tail512d14.ts.net/*"
+      ],
+      "js": [
+        "site-bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "youtube-player.js",
+        "youtube-main-loader.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    "youtube-main.js"
+  ]
+}

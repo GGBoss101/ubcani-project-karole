@@ -27,23 +27,8 @@ These are built on Chrome, so the same folder works as it is. Open the browser's
 
 ### Firefox
 
-Needs Firefox 128 or newer (Firefox menu > Help > About Firefox updates it). The same folder
-works; `manifest.json` carries the extra entries Firefox needs.
-
-- **Try it now (until Firefox closes):** go to `about:debugging#/runtime/this-firefox`, click
-  **Load Temporary Add-on...** and choose `manifest.json` in this folder. Firefox removes it
-  when it quits, so this is the way to test, or to use it for one night.
-- **Keep it installed:** Firefox only keeps add-ons signed by Mozilla. Make a zip of this
-  folder's contents (in Terminal, from this folder:
-  `zip -r ../karole-youtube-extension.zip . -x ".*" "README.md"`), sign in at
-  https://addons.mozilla.org/developers/, choose **Submit a New Add-on**, pick **On your own**
-  (unlisted, so it never appears in the store) and upload the zip. Signing is free and
-  automatic; download the signed `.xpi` it gives back and open it in Firefox to install.
-  Each new version needs uploading again, with a higher `version` in `manifest.json`.
-- If the player page doesn't find the extension, open `about:addons`, click the extension,
-  open **Permissions** and make sure the Karole site and youtube.com are allowed.
-- To let songs start without a click, open youtube.com, click the icon left of the address
-  (the one for site permissions), and set **Autoplay** to **Allow Audio and Video**.
+Firefox has its own copy in `../karole-youtube-extension-firefox` (Manifest V2, which this
+Chrome version can't use since Chrome dropped V2). See the README there for installing it.
 
 Safari isn't supported: it would need converting with Xcode and signing with an Apple
 developer account.
@@ -72,7 +57,7 @@ YouTube window; later songs then start on their own. The player page says so whe
 
 ### Letting songs start without a click (Chrome)
 
-For Firefox, see the Firefox steps under Install.
+For Firefox, see `../karole-youtube-extension-firefox/README.md`.
 
 
 Chrome only lets a page play with sound after someone has clicked in it, unless it already
@@ -100,6 +85,10 @@ Add the site's address to the `"matches"` list for `site-bridge.js` in `manifest
 `"https://karaoke.ubcani.com/*"`, then reload the extension.
 
 ## How it works
+
+When changing a script here, make the same change in `../karole-youtube-extension-firefox`. Its
+copies differ only in using `browser.` where these use `chrome.`, and in loading
+`youtube-main.js` through `youtube-main-loader.js`.
 
 | File | Job |
 | --- | --- |

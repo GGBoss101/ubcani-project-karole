@@ -77,7 +77,7 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
 The player page (`app/admin/view`) has two modes:
 
 - **YouTube window** (`view/window-player.js`, `lib/youtube-window.js`), used when the
-  "Karole YouTube Controller" browser extension (Chrome, Edge, Brave, Firefox...) in `../karole-youtube-extension` is installed.
+  "Karole YouTube Controller" browser extension is installed (`../karole-youtube-extension` for Chrome, Edge, Brave..., `../karole-youtube-extension-firefox` for Firefox).
   Songs play in a real YouTube window, so every video works and playback never goes through
   the backend. The page is the remote. See that folder's README to install it.
 - **Built-in player** (`view/stream-player.js`), used otherwise: it plays the backend's stream.

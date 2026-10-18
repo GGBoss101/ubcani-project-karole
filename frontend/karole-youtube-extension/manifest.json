@@ -1,22 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Karole YouTube Controller",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Lets the Karole player page open YouTube in its own window and control what plays there.",
   "permissions": [
     "storage"
   ],
   "background": {
-    "service_worker": "background.js",
-    "scripts": [
-      "background.js"
-    ]
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "karole-youtube-controller@ubcani.com",
-      "strict_min_version": "128.0"
-    }
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
