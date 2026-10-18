@@ -7,6 +7,7 @@ const FIELD_LABELS = { name: "Your name", song_name: "The song name", url: "The 
 const FRIENDLY_DETAILS = {
     "Song exists in playlist": "That song is already in tonight's queue.",
     "This name is blacklisted": "This name can't add songs. Please talk to the host.",
+    "Song was removed for being too long": "That song was removed for being too long, so it can't be added again.",
 };
 
 // One FastAPI validation error (status 422), e.g. a name with characters it doesn't allow.

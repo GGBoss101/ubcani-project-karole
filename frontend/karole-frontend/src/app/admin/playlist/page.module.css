@@ -218,6 +218,79 @@
   color: var(--navy);
 }
 
+/* Songs deleted for being too long, listed so they can be unblocked. */
+.blocked {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  background: var(--surface);
+}
+
+.blocked h2 {
+  color: var(--yellow);
+  font-size: 18px;
+}
+
+.blocked > p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.blocked ul {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.blocked li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.blocked li div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.blocked li a {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blocked li a:hover {
+  color: var(--light-blue);
+}
+
+.blocked li span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.blocked li button {
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 7px 14px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.blocked li button:hover {
+  border-color: var(--light-blue);
+  color: var(--light-blue);
+}
+
 /* Clicking a row jumps playback to that song. */
 .row {
   cursor: pointer;

@@ -21,6 +21,8 @@ function formatDuration(totalSeconds) {
 
 export default function AdminPlaylist() {
     const [songs, setSongs] = useState([]);
+    // Songs deleted for being too long, which can't be added again until unblocked.
+    const [blocked, setBlocked] = useState([]);
     const [status, setStatus] = useState("loading");
     const [error, setError] = useState("");
     const [playback, setPlayback] = useState({ playing: false, song: null });
@@ -61,7 +63,10 @@ export default function AdminPlaylist() {
                 const nextPlayback = await playbackResponse.json();
                 const playlist = await response.json();
                 const queueFinished = await fetchQueueFinished();
+                const blockedResponse = await adminFetch(`${BACKEND_URI}/playlist/blocked`, { cache: "no-store" });
+                const blockedSongs = blockedResponse.ok ? await blockedResponse.json() : null;
                 if (isActive) {
+                    if (blockedSongs) setBlocked(blockedSongs);
                     setPlayback(nextPlayback);
                     setFinished(queueFinished);
                     setSongs(playlist.sort((first, second) => first.order_num - second.order_num));
@@ -90,6 +95,8 @@ export default function AdminPlaylist() {
             throw new Error(statusMessage(response.status));
         }
         setSongs((await response.json()).sort((first, second) => first.order_num - second.order_num));
+        const blockedResponse = await adminFetch(`${BACKEND_URI}/playlist/blocked`, { cache: "no-store" });
+        if (blockedResponse.ok) setBlocked(await blockedResponse.json());
         // Deleting or re-queueing songs can change what is playing.
         await refreshPlayback();
     }
@@ -177,6 +184,15 @@ export default function AdminPlaylist() {
     function deleteSong(song) {
         if (!window.confirm(`Delete "${song.youtube_title}" from the playlist?`)) return;
         updatePlaylist(`/playlist/delete?playlist_id=${song.p_id}`, { method: "DELETE" });
+    }
+
+    // Removes a too-long song and blocks it from being added again.
+    function deleteTooLong(song) {
+        updatePlaylist(`/playlist/delete_too_long?playlist_id=${song.p_id}`, { method: "DELETE" });
+    }
+
+    function unblock(blockedSong) {
+        updatePlaylist(`/playlist/blocked?url_id=${encodeURIComponent(blockedSong.url_id)}`, { method: "DELETE" });
     }
 
     function flushPlaylist() {
@@ -277,8 +293,8 @@ export default function AdminPlaylist() {
                             which is over the limit.
                         </p>
                         <div className={styles.noticeActions}>
-                            <button onClick={() => updatePlaylist(`/playlist/delete?playlist_id=${song.p_id}`, { method: "DELETE" })}>
-                                Skip song
+                            <button onClick={() => deleteTooLong(song)} title="Deletes it and blocks it from being added again">
+                                Delete song
                             </button>
                             <button onClick={() => updatePlaylist(`/playlist/keep?playlist_id=${song.p_id}`, { method: "POST" })}>
                                 Keep
@@ -410,6 +426,31 @@ export default function AdminPlaylist() {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                )}
+
+                {blocked.length > 0 && (
+                    <div className={styles.blocked}>
+                        <h2>Blocked for being too long</h2>
+                        <p>Deleted from the warning above, so they can&apos;t be added again.</p>
+                        <ul>
+                            {blocked.map((blockedSong) => (
+                                <li key={blockedSong.url_id}>
+                                    <div>
+                                        <a href={blockedSong.url} target="_blank" rel="noreferrer">
+                                            {blockedSong.youtube_title}
+                                        </a>
+                                        <span>
+                                            {blockedSong.duration ? formatDuration(blockedSong.duration) : "Unknown length"}
+                                            {blockedSong.name && ` · added by ${blockedSong.name}`}
+                                        </span>
+                                    </div>
+                                    <button type="button" onClick={() => unblock(blockedSong)}>
+                                        Unblock
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 )}
 

@@ -2,6 +2,7 @@ from models import PlaylistInput, NameInput, PlaylistEntry, PlaylistSwap, Playli
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from name import name
 from playlist.playlist_store import playlist_store
+from database import client
 import asyncio
 import os
 import time
@@ -118,6 +119,10 @@ async def prefetch_playback_formats(url: str) -> None:
         # Only a head start: the lookup runs again, and reports its error, when the song starts.
         pass
 
+# Songs the admin deleted for being too long. Kept in the database, unlike the playlist, so
+# they stay blocked from being added again after a restart.
+blocked_col = client["blocked_song"]
+
 # How many videos a search on the Add page returns.
 SEARCH_RESULT_COUNT = 10
 
@@ -156,6 +161,9 @@ async def add_song(body: PlaylistInput):
 
     if playlist_store.find_song_by_url(body.service, body.url_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Song exists in playlist")
+    # Checked before the slow YouTube lookup below.
+    if await blocked_col.find_one({"service": body.service, "url_id": body.url_id}):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Song was removed for being too long")
 
     video_info = await asyncio.to_thread(extract_video_info, body.url)
     channel_icon_url = await asyncio.to_thread(
@@ -304,6 +312,42 @@ async def delete(playlist_id: int) -> PlaylistEntry:
             detail="Playlist entry not found",
         )
     return song
+
+@router.delete("/delete_too_long", dependencies=[Depends(require_admin)])
+async def delete_too_long(playlist_id: int) -> PlaylistEntry:
+    # Like /delete, but the song is also blocked from being added again (see blocked_col).
+    song = playlist_store.delete_song(playlist_id)
+    if song is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Playlist entry not found",
+        )
+    await blocked_col.update_one(
+        {"service": song.service, "url_id": song.url_id},
+        {"$set": {
+            "service": song.service,
+            "url_id": song.url_id,
+            "url": song.url,
+            "youtube_title": song.youtube_title,
+            "duration": song.duration,
+            "name": song.name,
+            "time": time.time(),
+        }},
+        upsert=True,
+    )
+    return song
+
+@router.get("/blocked", dependencies=[Depends(require_admin)])
+async def get_blocked() -> list[dict]:
+    blocked = await blocked_col.find({}, {"_id": 0}).sort("time", -1).to_list()
+    return blocked
+
+@router.delete("/blocked", dependencies=[Depends(require_admin)])
+async def unblock(url_id: str) -> dict[str, str]:
+    result = await blocked_col.delete_many({"url_id": url_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blocked song not found")
+    return {"message": "Song unblocked"}
 
 @router.post("/keep", dependencies=[Depends(require_admin)])
 async def keep(playlist_id: int) -> PlaylistEntry:

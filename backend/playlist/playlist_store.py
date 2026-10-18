@@ -241,7 +241,8 @@ class Playlist:
     def back(self) -> None:
         current_index = self.find_current_index()
         if current_index is None:
-            self.select_song(len(self.songs) - 1)
+            # Already before the first song: stay there rather than wrapping round to the end.
+            pass
         elif self.finished:
             # After the queue ran out, back replays the last song.
             self.select_song(current_index)
