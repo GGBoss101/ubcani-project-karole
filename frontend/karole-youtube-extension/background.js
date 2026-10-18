@@ -93,6 +93,14 @@ async function fromSite(message, tab) {
         }
         case "seek":
             return { ok: await tellYouTube({ type: "seek", time: Number(message.time) || 0 }) };
+        case "captions":
+            // Only for the song playing now: each video has its own caption tracks.
+            return {
+                ok: await tellYouTube({
+                    type: "captions",
+                    captionId: typeof message.captionId === "string" ? message.captionId : null,
+                }),
+            };
         case "settings": {
             // Volume (0-100), muted, speed and whether YouTube's own controls show. They are
             // kept so every new song gets them too.

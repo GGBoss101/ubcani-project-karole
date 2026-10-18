@@ -109,7 +109,7 @@ export default function AdminView() {
                 )}
                 {song && (
                     <p className={styles.songTitle}>
-                        {song.url_title}
+                        {song.youtube_title}
                         <span>{song.name}</span>
                     </p>
                 )}

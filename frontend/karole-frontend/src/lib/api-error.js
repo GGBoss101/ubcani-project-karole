@@ -1,7 +1,7 @@
 // Builds the message shown to the user when a backend request fails, in plain words
 // instead of the backend's technical ones.
 
-const FIELD_LABELS = { name: "Your name", author: "The author name", url: "The link" };
+const FIELD_LABELS = { name: "Your name", song_name: "The song name", url: "The link" };
 
 // Backend messages people can hit while adding songs, reworded.
 const FRIENDLY_DETAILS = {
@@ -15,7 +15,7 @@ function describeValidationError(error) {
     if (error.type === "string_pattern_mismatch" && field === FIELD_LABELS.name) {
         return `${field} can only use letters, numbers, spaces and _ (no punctuation or emoji).`;
     }
-    if (error.type === "string_pattern_mismatch" && field === FIELD_LABELS.author) {
+    if (error.type === "string_pattern_mismatch" && field === FIELD_LABELS.song_name) {
         return `${field} can only use letters, numbers, spaces and _ * @ # ^ & % (no other punctuation).`;
     }
     if (error.type === "string_too_long") {

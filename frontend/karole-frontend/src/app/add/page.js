@@ -9,6 +9,7 @@ import Link from "next/link";
 import banner from "../../../assets/banner1_final.png";
 import Header from "../../components/header";
 import QueueItem from "../../components/queue-item";
+import YouTubeSearch from "../../components/youtube-search";
 import { usePlaylist } from "../../lib/use-playlist";
 import { fetchQueueSettings, useQueueSettings } from "../../lib/use-queue-settings";
 import { describeLength, totalLength } from "../../lib/queue-time";
@@ -52,16 +53,16 @@ async function explainFailedRequest() {
     return "Can't reach the server right now. Please let the host know.";
 }
 
-function getServerAuthor() {
+function getServerName() {
     return "";
 }
 
 export default function AddSong() {
-    const [form, setForm] = useState({ url: "", name: "", author: "" });
+    const [form, setForm] = useState({ url: "", name: "", song_name: "" });
     const [submittedName, setSubmittedName] = useState("");
     const [status, setStatus] = useState("idle");
     const [message, setMessage] = useState("");
-    const savedName = useSyncExternalStore(subscribeToSavedName, getSavedName, getServerAuthor);
+    const savedName = useSyncExternalStore(subscribeToSavedName, getSavedName, getServerName);
     const name = savedName || submittedName || form.name;
     const hasSavedName = Boolean(savedName || submittedName);
     const { songs, upcoming, currentId, status: queueStatus } = usePlaylist();
@@ -134,7 +135,7 @@ export default function AddSong() {
             setForm({ ...form, name: submitName });
             setSubmittedName(submitName);
             setStatus("success");
-            setMessage(`Added "${result.url_title || "song"}" to the playlist.`);
+            setMessage(`Added "${result.youtube_title || "song"}" to the playlist.`);
         } catch (requestError) {
             setStatus("error");
             setMessage(requestError instanceof TypeError ? await explainFailedRequest() : requestError.message);
@@ -158,7 +159,7 @@ export default function AddSong() {
                     <div className={styles.heading}>
                         <p className={styles.eyebrow}>Join the queue</p>
                         <h1>Add a song</h1>
-                        <p className={styles.intro}>Paste a YouTube link and you&apos;re in line to sing.</p>
+                        <p className={styles.intro}>Search for your song or paste a YouTube link, and you&apos;re in line to sing.</p>
                     </div>
 
                     {isClosed && (
@@ -169,6 +170,14 @@ export default function AddSong() {
                     )}
 
                     <form className={styles.form} onSubmit={handleSubmit} hidden={isClosed}>
+                        <YouTubeSearch
+                            onPick={(video) => {
+                                setForm((currentForm) => ({ ...currentForm, url: video.url }));
+                                setStatus("idle");
+                                setMessage("");
+                            }}
+                        />
+
                         <label className={styles.field}>
                             <span>YouTube URL</span>
                             <input
@@ -204,14 +213,14 @@ export default function AddSong() {
                             </label>
 
                             <label className={styles.field}>
-                                <span>Author name</span>
+                                <span>Song name</span>
                                 <input
-                                    name="author"
+                                    name="song_name"
                                     type="text"
-                                    value={form.author}
+                                    value={form.song_name}
                                     onChange={updateField}
-                                    placeholder="Song author"
-                                    maxLength={30}
+                                    placeholder="Song name"
+                                    maxLength={70}
                                     required
                                 />
                             </label>

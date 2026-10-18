@@ -18,7 +18,7 @@ const DEFAULT_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 // Plays songs in a real YouTube window through the Karole YouTube Controller extension.
 // This page becomes the remote: every control for the screen is here (play/pause, back, skip,
-// jump, volume, speed, full screen, YouTube's own controls), and it moves on to the next song
+// jump, volume, speed, captions, full screen, YouTube's own controls), and it moves on to the next song
 // when YouTube reports that one has ended.
 export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBack, onSkip }) {
     const [status, setStatus] = useState(null);
@@ -104,6 +104,9 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
     const rates = status?.rates?.length ? status.rates : DEFAULT_RATES;
     const slower = [...rates].reverse().find((option) => option < rate);
     const faster = rates.find((option) => option > rate);
+    // Caption tracks of the song playing now; each video has its own.
+    const captions = isThisSong && !status.ad ? status.captions || [] : [];
+    const caption = isThisSong ? status.caption || "" : "";
     const showControls = Boolean(status?.showControls);
     const fullscreen = Boolean(status?.fullscreen);
     // A song is up but the window has gone quiet: it was closed, or it's left over from before
@@ -136,7 +139,7 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
                 </p>
                 {song && (
                     <>
-                        <h1 className={styles.remoteTitle}>{song.url_title}</h1>
+                        <h1 className={styles.remoteTitle}>{song.youtube_title}</h1>
                         <p className={styles.remoteSinger}>{song.name}</p>
                     </>
                 )}
@@ -245,6 +248,21 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
                         </button>
                     </div>
                 </div>
+
+                <label className={styles.setting}>
+                    <span className={styles.settingLabel}>Captions</span>
+                    <select
+                        className={styles.select}
+                        value={captions.length ? caption : ""}
+                        onChange={(event) => sendToExtension({ type: "captions", captionId: event.target.value || null })}
+                        disabled={!captions.length}
+                    >
+                        <option value="">{captions.length ? "Off" : "No captions for this video"}</option>
+                        {captions.map((track) => (
+                            <option key={track.id} value={track.id}>{track.name}</option>
+                        ))}
+                    </select>
+                </label>
 
                 <div className={styles.setting}>
                     <span className={styles.settingLabel}>Screen</span>

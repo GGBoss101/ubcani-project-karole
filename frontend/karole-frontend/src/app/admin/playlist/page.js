@@ -175,7 +175,7 @@ export default function AdminPlaylist() {
     }
 
     function deleteSong(song) {
-        if (!window.confirm(`Delete "${song.url_title}" from the playlist?`)) return;
+        if (!window.confirm(`Delete "${song.youtube_title}" from the playlist?`)) return;
         updatePlaylist(`/playlist/delete?playlist_id=${song.p_id}`, { method: "DELETE" });
     }
 
@@ -255,7 +255,7 @@ export default function AdminPlaylist() {
                         <p className={styles.playbackState}>{playbackState}</p>
                         {playback.song && !finished && (
                             <p className={styles.nowPlayingTitle}>
-                                {playback.song.url_title}
+                                {playback.song.youtube_title}
                                 <span> sung by {playback.song.name}</span>
                             </p>
                         )}
@@ -273,7 +273,7 @@ export default function AdminPlaylist() {
                 {songs.filter((song) => song.is_too_long).map((song) => (
                     <div className={styles.notice} role="alert" key={song.p_id}>
                         <p>
-                            &quot;{song.url_title}&quot; added by {song.name} is {formatDuration(song.duration)} long,
+                            &quot;{song.youtube_title}&quot; added by {song.name} is {formatDuration(song.duration)} long,
                             which is over the limit.
                         </p>
                         <div className={styles.noticeActions}>
@@ -296,8 +296,8 @@ export default function AdminPlaylist() {
                                     <th>Order</th>
                                     <th>Name</th>
                                     <th>Channel</th>
-                                    <th>Song</th>
-                                    <th>Author</th>
+                                    <th>YouTube Title</th>
+                                    <th>Song Name</th>
                                     <th aria-label="Actions" />
                                 </tr>
                             </thead>
@@ -346,16 +346,16 @@ export default function AdminPlaylist() {
                                                 <span className={styles.channelName}>{song.url_creator}</span>
                                             </div>
                                         </td>
-                                        <td data-label="Song">
+                                        <td data-label="YouTube Title">
                                             <a className={styles.songLink} href={song.url} target="_blank" rel="noreferrer">
-                                                {song.url_title}
+                                                {song.youtube_title}
                                             </a>
                                         </td>
-                                        <td data-label="Author">{song.author}</td>
+                                        <td data-label="Song Name">{song.song_name}</td>
                                         <td className={styles.actionCell}>
                                 <button
                                     className={styles.menuButton}
-                                    aria-label={`Actions for ${song.url_title}`}
+                                    aria-label={`Actions for ${song.youtube_title}`}
                                     aria-expanded={openMenu === song.p_id}
                                     onClick={(event) => {
                                         if (openMenu === song.p_id) {

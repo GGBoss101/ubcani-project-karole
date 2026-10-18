@@ -1,6 +1,6 @@
 // Runs on youtube.com. In the window the Karole player opened (and only there), it makes the
 // video fill the window, carries out the commands from the player page (play, pause, jump,
-// volume, speed, showing YouTube's own controls), and reports what the video is doing so the
+// volume, speed, captions, showing YouTube's own controls), and reports what the video is doing so the
 // player page can move on when a song ends.
 // YouTube's player itself is driven through youtube-main.js (see there for why).
 
@@ -39,7 +39,9 @@ function addKioskStyle() {
     // Only the video is shown, filling the window, like a TV. YouTube sizes the video and its
     // container itself for the normal page, so both are pinned to the window here; sizing only
     // the video left its container 0 px tall and the picture black. YouTube's own controls are
-    // hidden unless the player page turns them on (the "karole-controls" class).
+    // hidden unless the player page turns them on (the "karole-controls" class). Captions start
+    // at the bottom centre (YouTube left-aligns auto-generated ones) and can be dragged from there
+    // (see enableCaptionDrag).
     style.textContent = `
         html, body { overflow: hidden !important; background: #000 !important; }
         #masthead-container, #secondary, #below, #chat, ytd-mini-guide-renderer, tp-yt-app-drawer,
@@ -52,6 +54,13 @@ function addKioskStyle() {
             width: 100% !important; height: 100% !important; }
         #movie_player video.html5-main-video { position: absolute !important; inset: 0 !important;
             width: 100% !important; height: 100% !important; object-fit: contain !important; }
+        #movie_player .ytp-caption-window-container { position: absolute !important; inset: 0 !important;
+            width: 100% !important; height: 100% !important; }
+        #movie_player .caption-window.ytp-caption-window-bottom { top: auto !important;
+            bottom: 6% !important; left: 50% !important; right: auto !important; margin-left: 0 !important;
+            width: max-content !important; max-width: 90% !important; text-align: center !important;
+            transform: translate(calc(-50% + var(--karole-caption-x, 0px)), var(--karole-caption-y, 0px)) !important;
+            cursor: move !important; }
     `;
     (document.head || document.documentElement).appendChild(style);
 }
@@ -63,6 +72,80 @@ function showYouTubeControls(show) {
     // YouTube lays its control bar out for the player's size when it's measured; nudge it to
     // measure again now that the player fills the window.
     window.dispatchEvent(new Event("resize"));
+}
+
+// Captions can be dragged anywhere in the window and double-clicked to go back to the centre.
+// The spot is kept in sessionStorage, which lasts while this window stays open, so each new song
+// (a fresh page) puts them back where they were. The listeners run before YouTube's own, so its
+// caption drag and its double-click full screen don't also fire.
+const CAPTION_OFFSET_KEY = "karole-caption-offset";
+let captionDragEnabled = false;
+
+function setCaptionOffset(x, y) {
+    const root = document.documentElement;
+    root.style.setProperty("--karole-caption-x", `${x}px`);
+    root.style.setProperty("--karole-caption-y", `${y}px`);
+    try {
+        sessionStorage.setItem(CAPTION_OFFSET_KEY, JSON.stringify({ x, y }));
+    } catch {
+        // Not kept for the next song; the captions start at the centre again.
+    }
+}
+
+function enableCaptionDrag() {
+    if (captionDragEnabled) return;
+    captionDragEnabled = true;
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(CAPTION_OFFSET_KEY) || "null");
+        if (saved) setCaptionOffset(Number(saved.x) || 0, Number(saved.y) || 0);
+    } catch {
+        // Starts at the centre.
+    }
+
+    let drag = null;
+    const onCaption = (event) => event.target instanceof Element && event.target.closest(".caption-window");
+    const stop = (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+    };
+
+    window.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0 || !onCaption(event)) return;
+        stop(event);
+        const style = document.documentElement.style;
+        drag = {
+            startX: event.clientX,
+            startY: event.clientY,
+            x: parseFloat(style.getPropertyValue("--karole-caption-x")) || 0,
+            y: parseFloat(style.getPropertyValue("--karole-caption-y")) || 0,
+        };
+    }, true);
+    window.addEventListener("mousedown", (event) => {
+        if (onCaption(event)) stop(event);
+    }, true);
+    window.addEventListener("pointermove", (event) => {
+        if (!drag) return;
+        stop(event);
+        // Kept within the window so they can't be dragged out of sight.
+        const halfWidth = window.innerWidth / 2;
+        const x = Math.max(-halfWidth, Math.min(halfWidth, drag.x + event.clientX - drag.startX));
+        const y = Math.max(-window.innerHeight * 0.9, Math.min(0, drag.y + event.clientY - drag.startY));
+        setCaptionOffset(Math.round(x), Math.round(y));
+    }, true);
+    window.addEventListener("pointerup", (event) => {
+        if (!drag) return;
+        stop(event);
+        drag = null;
+    }, true);
+    window.addEventListener("click", (event) => {
+        // A click on the captions would otherwise pause the video.
+        if (onCaption(event)) stop(event);
+    }, true);
+    window.addEventListener("dblclick", (event) => {
+        if (!onCaption(event)) return;
+        stop(event);
+        setCaptionOffset(0, 0);
+    }, true);
 }
 
 // YouTube plays a recommended video when one ends; the player page decides what's next.
@@ -84,6 +167,9 @@ function status() {
         muted: player ? player.muted : null,
         rate: player ? player.rate : null,
         rates: player ? player.rates : null,
+        // Caption tracks of this video, and the id of the one showing (null when off).
+        captions: fresh ? player.captions || [] : [],
+        caption: fresh ? player.caption || null : null,
         showControls: document.documentElement.classList.contains("karole-controls"),
         error,
     };
@@ -141,6 +227,7 @@ function takeControl(reply) {
     settings = reply?.settings || settings;
     if (!controlled) return;
     addKioskStyle();
+    enableCaptionDrag();
     command("start");
 }
 
@@ -157,6 +244,11 @@ chrome.runtime.onMessage.addListener((message) => {
         command(message.type);
     } else if (message.type === "seek") {
         command("seek", { time: message.time });
+    } else if (message.type === "captions") {
+        command("captions", { captionId: message.captionId });
+        // YouTube lays captions out for the player's size when they appear; nudge it to measure
+        // again once they've loaded.
+        window.setTimeout(() => window.dispatchEvent(new Event("resize")), 600);
     } else if (message.type === "settings") {
         settings = message.settings || {};
         showYouTubeControls(settings.showControls);

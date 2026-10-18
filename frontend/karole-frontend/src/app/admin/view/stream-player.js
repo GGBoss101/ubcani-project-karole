@@ -63,7 +63,7 @@ export default function StreamPlayer({ song, playing, onEnded, onError }) {
                 key={`${songId}-${attempt}`}
                 ref={videoRef}
                 className={styles.player}
-                title={song.url_title}
+                title={song.youtube_title}
                 playsInline
                 preload="auto"
                 controls

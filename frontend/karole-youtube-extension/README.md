@@ -31,8 +31,10 @@ click "Reconnect the YouTube window", or reload the player page.
 4. Drag that window onto the karaoke screen and click **Full screen** on the player page to switch it on.
 5. Keep the player page open on the laptop. It's the remote, with every control in one panel:
    Back, Play/Pause, Skip, a seek bar, volume and mute, slower/faster (0.25× to 2×, click the
-   speed to go back to 1×), full screen on or off, YouTube's own controls on or off, and reload. Volume,
-   speed and the controls setting carry over to every song. The admin playlist page's buttons
+   speed to go back to 1×), a captions menu (off, or any caption track the video has), full screen
+   on or off, YouTube's own controls on or off, and reload. Volume, speed and the controls setting
+   carry over to every song; captions are chosen per song. In the YouTube window,
+   drag the captions to move them, and double-click them to put them back in the centre. The admin playlist page's buttons
    work too. When a song ends, the next one starts by itself.
 
 If YouTube blocks the first song from starting with sound, click once on the video in the

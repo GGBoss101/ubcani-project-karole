@@ -1,5 +1,5 @@
 from models import PlaylistInput, NameInput, PlaylistEntry, PlaylistSwap, PlaylistMove, PlaylistJump
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from name import name
 from playlist.playlist_store import playlist_store
 import asyncio
@@ -118,6 +118,38 @@ async def prefetch_playback_formats(url: str) -> None:
         # Only a head start: the lookup runs again, and reports its error, when the song starts.
         pass
 
+# How many videos a search on the Add page returns.
+SEARCH_RESULT_COUNT = 10
+
+def search_videos(query: str) -> list[dict]:
+    options = _yt_dlp_options()
+    # Flat: only the search results page is read, not every video, so it takes about a second.
+    options["extract_flat"] = True
+    with YoutubeDL(cast(Any, options)) as downloader:
+        results = cast(dict, downloader.extract_info(f"ytsearch{SEARCH_RESULT_COUNT}:{query}", download=False))
+    videos = []
+    for entry in results.get("entries") or []:
+        video_id = entry.get("id")
+        # Search results can include channels and playlists; only videos can be added.
+        if not video_id or len(video_id) != 11:
+            continue
+        videos.append({
+            "url_id": video_id,
+            "url": f"https://www.youtube.com/watch?v={video_id}",
+            "title": entry.get("title"),
+            "channel": entry.get("channel") or entry.get("uploader"),
+            "duration": entry.get("duration"),
+            "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg",
+        })
+    return videos
+
+@router.get("/search")
+async def search(q: str = Query(min_length=1, max_length=100)) -> list[dict]:
+    try:
+        return await asyncio.to_thread(search_videos, q.strip())
+    except Exception as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="YouTube search failed") from error
+
 @router.post("/add")
 async def add_song(body: PlaylistInput):
     date = time.time()
@@ -140,12 +172,12 @@ async def add_song(body: PlaylistInput):
         "time": date,
         # Shown as typed, even when it is an alternate name of someone already known.
         "name": body.name,
-        "author": body.author,
+        "song_name": body.song_name,
         "service": body.service,
         "url": body.url,
         "url_id": body.url_id,
         "url_creator": video_info.get("uploader") or video_info.get("channel"),
-        "url_title": video_info.get("title"),
+        "youtube_title": video_info.get("title"),
         "url_channel_icon": channel_icon_url,
         "duration": duration,
         "is_too_long": duration is not None and duration > max_song_length_seconds,

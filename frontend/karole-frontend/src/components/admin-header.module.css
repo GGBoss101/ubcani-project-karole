@@ -9,7 +9,7 @@
   gap: 12px 20px;
   margin: 0 calc(var(--gutter) * -1) clamp(28px, 5vw, 48px);
   border-bottom: 1px solid var(--line);
-  padding: calc(12px + env(safe-area-inset-top)) var(--gutter) 12px;
+  padding: calc(clamp(0.75rem, 0.64rem + 0.41vw, 1.125rem) + env(safe-area-inset-top)) var(--gutter) clamp(0.75rem, 0.64rem + 0.41vw, 1.125rem);
   background: color-mix(in srgb, var(--navy) 88%, transparent);
   backdrop-filter: blur(12px);
 }
@@ -20,22 +20,23 @@
   align-items: center;
   gap: 10px;
   font-family: var(--font-heading);
-  font-size: 20px;
+  font-size: clamp(1.25rem, 1.06rem + 0.68vw, 1.875rem);
   letter-spacing: 0.04em;
 }
 
+/* Desktop sizes grow with the window between today's size and a ceiling, like the public header. */
 .logo {
-  width: 34px;
-  height: 34px;
+  width: clamp(2.125rem, 1.79rem + 1.22vw, 3.25rem);
+  height: clamp(2.125rem, 1.79rem + 1.22vw, 3.25rem);
 }
 
 .badge {
   border-radius: var(--radius-pill);
-  padding: 3px 9px;
+  padding: 0.27em 0.8em;
   background: var(--yellow);
   color: var(--navy);
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: clamp(0.6875rem, 0.63rem + 0.2vw, 0.875rem);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -55,13 +56,13 @@
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  min-height: 40px;
+  min-height: clamp(2.5rem, 2.28rem + 0.81vw, 3.25rem);
   border: 0;
   border-radius: var(--radius-pill);
-  padding: 0 14px;
+  padding: 0 clamp(0.875rem, 0.75rem + 0.47vw, 1.3125rem);
   background: transparent;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: clamp(0.875rem, 0.8rem + 0.27vw, 1.125rem);
   font-weight: 600;
   white-space: nowrap;
   transition: color 0.15s, background 0.15s;
