@@ -112,6 +112,16 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
     // A song is up but the window has gone quiet: it was closed, or it's left over from before
     // the extension was reloaded and no longer listens.
     const silent = Boolean(song) && state !== "closed" && now - lastHeard > 8000;
+    // The song should be playing but YouTube is sitting still: Chrome only lets a page start
+    // with sound after someone clicks in it (see the extension's README for a setting that
+    // lifts this on a computer).
+    const waiting = Boolean(song) && playing && isThisSong && !status.ad && ["paused", "loading"].includes(status.state);
+    const [waitingSince, setWaitingSince] = useState(null);
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setWaitingSince(waiting ? Date.now() : null);
+    }, [waiting, song?.p_id]);
+    const autoplayBlocked = waiting && waitingSince !== null && now - waitingSince > 5000;
 
     function finishSeek() {
         if (seekTo !== null) sendToExtension({ type: "seek", time: seekTo });
@@ -148,6 +158,12 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
             {state === "error" && status?.error && (
                 <p className={styles.notice} role="alert">
                     YouTube says: {status.error}. Skip to the next song or try another version of this one.
+                </p>
+            )}
+            {autoplayBlocked && !silent && (
+                <p className={styles.notice} role="status">
+                    YouTube is waiting to start. Click once on the video in the YouTube window to let it play
+                    with sound; later songs usually start on their own.
                 </p>
             )}
             {state === "closed" && song && (

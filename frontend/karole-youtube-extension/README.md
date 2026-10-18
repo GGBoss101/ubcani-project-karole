@@ -38,7 +38,26 @@ click "Reconnect the YouTube window", or reload the player page.
    work too. When a song ends, the next one starts by itself.
 
 If YouTube blocks the first song from starting with sound, click once on the video in the
-YouTube window; later songs then start on their own.
+YouTube window; later songs then start on their own. The player page says so when it happens
+("YouTube is waiting to start").
+
+### Letting songs start without a click
+
+Chrome only lets a page play with sound after someone has clicked in it, unless it already
+trusts the site (a computer that watches a lot of YouTube in Chrome usually does). On a computer
+where songs keep waiting for a click, add YouTube to Chrome's autoplay allow list, once:
+
+- **Mac:** in Terminal, run
+  `defaults write com.google.Chrome AutoplayAllowlist -array "https://www.youtube.com"`,
+  then quit Chrome completely (Cmd+Q) and open it again.
+- **Windows:** in Registry Editor, create the key
+  `HKEY_CURRENT_USER\Software\Policies\Google\Chrome\AutoplayAllowlist` and add a string value
+  named `1` with the data `https://www.youtube.com`, then restart Chrome.
+
+Open `chrome://policy` and click **Reload policies**: `AutoplayAllowlist` should be listed with
+YouTube in it. Every song then starts playing with sound the moment the window opens. To undo it
+on a Mac, run `defaults delete com.google.Chrome AutoplayAllowlist` and restart Chrome; on
+Windows, delete the registry key.
 
 Without the extension, the player page falls back to the built-in player (the backend's video
 stream), exactly as before.
