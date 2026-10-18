@@ -1,4 +1,4 @@
-# Karole YouTube Controller (Chrome extension)
+# Karole YouTube Controller (browser extension)
 
 Plays the karaoke queue in a real YouTube window instead of the backend's video stream.
 Every video that plays on youtube.com plays here, including ones that refuse to play on other
@@ -18,6 +18,35 @@ After changing any file in this folder, click the reload arrow on the extension'
 reload the Karole player page. The extension takes the existing YouTube window over again
 instead of opening a second one. If the player page says the YouTube window isn't responding,
 click "Reconnect the YouTube window", or reload the player page.
+
+### Edge, Brave, Opera, Vivaldi, Arc
+
+These are built on Chrome, so the same folder works as it is. Open the browser's extensions page
+(`edge://extensions`, `brave://extensions`, `opera://extensions`, `vivaldi:extensions`; in Arc,
+`arc://extensions`), turn on **Developer mode**, click **Load unpacked** and choose this folder.
+
+### Firefox
+
+Needs Firefox 128 or newer (Firefox menu > Help > About Firefox updates it). The same folder
+works; `manifest.json` carries the extra entries Firefox needs.
+
+- **Try it now (until Firefox closes):** go to `about:debugging#/runtime/this-firefox`, click
+  **Load Temporary Add-on...** and choose `manifest.json` in this folder. Firefox removes it
+  when it quits, so this is the way to test, or to use it for one night.
+- **Keep it installed:** Firefox only keeps add-ons signed by Mozilla. Make a zip of this
+  folder's contents (in Terminal, from this folder:
+  `zip -r ../karole-youtube-extension.zip . -x ".*" "README.md"`), sign in at
+  https://addons.mozilla.org/developers/, choose **Submit a New Add-on**, pick **On your own**
+  (unlisted, so it never appears in the store) and upload the zip. Signing is free and
+  automatic; download the signed `.xpi` it gives back and open it in Firefox to install.
+  Each new version needs uploading again, with a higher `version` in `manifest.json`.
+- If the player page doesn't find the extension, open `about:addons`, click the extension,
+  open **Permissions** and make sure the Karole site and youtube.com are allowed.
+- To let songs start without a click, open youtube.com, click the icon left of the address
+  (the one for site permissions), and set **Autoplay** to **Allow Audio and Video**.
+
+Safari isn't supported: it would need converting with Xcode and signing with an Apple
+developer account.
 
 ## Using it
 
@@ -41,7 +70,10 @@ If YouTube blocks the first song from starting with sound, click once on the vid
 YouTube window; later songs then start on their own. The player page says so when it happens
 ("YouTube is waiting to start").
 
-### Letting songs start without a click
+### Letting songs start without a click (Chrome)
+
+For Firefox, see the Firefox steps under Install.
+
 
 Chrome only lets a page play with sound after someone has clicked in it, unless it already
 trusts the site (a computer that watches a lot of YouTube in Chrome usually does). On a computer
