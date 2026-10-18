@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import logo from "../../assets/favicon.png";
+import logo from "../../assets/Onigiri_Blue.svg";
 import { usePathname } from "next/navigation";
 import styles from "./header.module.css";
 
