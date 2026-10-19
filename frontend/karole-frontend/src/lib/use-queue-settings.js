@@ -1,11 +1,13 @@
-// Whether the queue is taking new songs (see app/api/queue-settings/route.js).
+// Whether the backend is accepting new songs.
 import { useCallback, useEffect, useState } from "react";
+import { BACKEND_URI } from "./config";
+import { adminFetch } from "./admin-auth";
 import { getErrorMessage, statusMessage } from "./api-error";
 
 const REFRESH_MS = 5000;
 
 export async function fetchQueueSettings() {
-    const response = await fetch("/api/queue-settings", { cache: "no-store" });
+    const response = await fetch(`${BACKEND_URI}/playlist/queue-settings`, { cache: "no-store" });
     if (!response.ok) throw new Error(statusMessage(response.status));
     return response.json();
 }
@@ -28,7 +30,7 @@ export function useQueueSettings() {
     }, [refresh]);
 
     async function setOpen(open) {
-        const response = await fetch("/api/queue-settings", {
+        const response = await adminFetch(`${BACKEND_URI}/playlist/queue-settings`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ open }),

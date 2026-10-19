@@ -118,3 +118,6 @@ class PlaylistMove(BaseModel):
 
 class PlaylistJump(BaseModel):
     order_num: int
+
+class QueueSettingsInput(BaseModel):
+    open: bool

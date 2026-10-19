@@ -11,7 +11,7 @@ import Header from "../../components/header";
 import QueueItem from "../../components/queue-item";
 import YouTubeSearch from "../../components/youtube-search";
 import { usePlaylist } from "../../lib/use-playlist";
-import { fetchQueueSettings, useQueueSettings } from "../../lib/use-queue-settings";
+import { useQueueSettings } from "../../lib/use-queue-settings";
 import { describeLength, totalLength } from "../../lib/queue-time";
 import styles from "./page.module.css";
 
@@ -112,12 +112,6 @@ export default function AddSong() {
         setMessage("");
 
         try {
-            // The host may have closed the queue since this page loaded.
-            const settings = await fetchQueueSettings().catch(() => ({ open: true }));
-            if (!settings.open) {
-                throw new Error("The queue just closed, so no more songs can be added right now.");
-            }
-
             const response = await fetch(`${BACKEND_URI}/playlist/add`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

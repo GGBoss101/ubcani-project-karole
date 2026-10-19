@@ -20,6 +20,8 @@ export default function AdminView() {
     // was pressed may carry the state from before it (over a slow link it can arrive after the
     // press is done), so its answer is ignored rather than undoing the press.
     const controlCount = useRef(0);
+    const controlSequence = useRef(0);
+    const controlQueue = useRef(Promise.resolve());
 
     useEffect(() => {
         detectExtension().then((version) => setMode(version ? "window" : "stream"));
@@ -56,29 +58,36 @@ export default function AdminView() {
         };
     }, []);
 
-    const control = useCallback(async (path) => {
+    const control = useCallback((path) => {
+        const sequence = ++controlSequence.current;
         controlCount.current += 1;
         if (path === "play_pause") {
             // Play/pause shows on screen straight away instead of after the backend answers.
             setPlayback((current) => ({ ...current, playing: !current.playing }));
         }
-        try {
-            const response = await adminFetch(`${BACKEND_URI}/playlist/${path}`, { method: "POST" });
-            const nextPlayback = await response.json().catch(() => null);
-            // Checks sent while the press was on its way can predate it too.
-            controlCount.current += 1;
-            if (!response.ok) {
-                throw new Error(nextPlayback?.detail || statusMessage(response.status));
+        const sendControl = async () => {
+            try {
+                const response = await adminFetch(`${BACKEND_URI}/playlist/${path}`, { method: "POST" });
+                const nextPlayback = await response.json().catch(() => null);
+                if (sequence !== controlSequence.current) return;
+                // Checks sent while the press was on its way can predate it too.
+                controlCount.current += 1;
+                if (!response.ok) {
+                    throw new Error(nextPlayback?.detail || statusMessage(response.status));
+                }
+                if (path === "play_pause") {
+                    setPlayback((current) => ({ ...current, playing: nextPlayback }));
+                } else {
+                    setPlayback(nextPlayback);
+                }
+                setError("");
+            } catch (requestError) {
+                if (sequence === controlSequence.current) setError(requestError.message);
             }
-            if (path === "play_pause") {
-                setPlayback((current) => ({ ...current, playing: nextPlayback }));
-            } else {
-                setPlayback(nextPlayback);
-            }
-            setError("");
-        } catch (requestError) {
-            setError(requestError.message);
-        }
+        };
+        const request = controlQueue.current.then(sendControl, sendControl);
+        controlQueue.current = request;
+        return request;
     }, []);
 
     const skip = useCallback(() => control("skip"), [control]);

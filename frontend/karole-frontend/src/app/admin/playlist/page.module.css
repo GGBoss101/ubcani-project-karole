@@ -221,6 +221,7 @@
 /* Songs deleted for being too long, listed so they can be unblocked. */
 .blocked {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   margin-top: 28px;
   border: 1px solid var(--line);
@@ -289,6 +290,120 @@
 .blocked li button:hover {
   border-color: var(--light-blue);
   color: var(--light-blue);
+}
+
+/* Restoring a past session from the playlist log. */
+.restore {
+  display: grid;
+  /* minmax(0, 1fr): a long session name in the menu can't stretch the box past the screen. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: clamp(16px, 3vw, 20px) clamp(16px, 3vw, 22px);
+  background: var(--surface);
+}
+
+.restore h2 {
+  color: var(--aqua);
+  font-size: clamp(15px, 4vw, 18px);
+  overflow-wrap: anywhere;
+}
+
+.restore p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.restore button {
+  justify-self: start;
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 0 22px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.restore button:hover:not(:disabled) {
+  border-color: var(--light-blue);
+  color: var(--light-blue);
+}
+
+.restore button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.restoreRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Styled like the site's text boxes, with its own arrow. */
+.restoreRow select {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 44px 0 14px;
+  background: var(--navy-deep)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e3eaff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 16px center / 16px;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  appearance: none;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.restoreRow select:focus {
+  border-color: var(--aqua);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--aqua) 18%, transparent);
+}
+
+.restoreRow select option {
+  background: var(--navy);
+  color: var(--text);
+}
+
+.restoreRow button {
+  border-color: var(--light-grey);
+  background: var(--light-grey);
+  color: var(--navy);
+}
+
+.restoreRow button:hover:not(:disabled) {
+  border-color: var(--light-blue);
+  background: var(--light-blue);
+  color: var(--navy);
+}
+
+.restore .restoreHint {
+  color: var(--yellow);
+}
+
+/* Phones: the menu takes the full width and Restore goes under it. */
+@media (max-width: 560px) {
+  .restoreRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .restore button {
+    justify-self: stretch;
+  }
 }
 
 /* Clicking a row jumps playback to that song. */

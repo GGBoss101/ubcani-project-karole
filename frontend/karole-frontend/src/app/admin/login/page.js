@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { BACKEND_URI } from "../../../lib/config";
-import logo from "../../../../assets/favicon.png";
+import logo from "../../../../assets/Onigiri_Blue.svg";
 import styles from "./page.module.css";
 
 // There is only one admin account, so the page asks for the password alone and sends this
@@ -45,7 +45,7 @@ export default function AdminLogin() {
         <main className={styles.page}>
             <section className={styles.panel}>
                 <Image className={styles.logo} src={logo} alt="" width={56} height={56} priority />
-                <p className={styles.eyebrow}>UBCANI Karole admin</p>
+                <p className={styles.eyebrow}>UBCANI Karaoke admin</p>
                 <h1>Sign in</h1>
                 <p className={styles.intro}>Sign in to run the karaoke queue.</p>
                 <form className={styles.form} onSubmit={handleSubmit}>

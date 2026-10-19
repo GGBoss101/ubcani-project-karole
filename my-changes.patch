@@ -1,0 +1,74 @@
+diff --git a/frontend/karole-frontend/src/app/admin/playlist/page.js b/frontend/karole-frontend/src/app/admin/playlist/page.js
+index 3267264..42c9c8c 100644
+--- a/frontend/karole-frontend/src/app/admin/playlist/page.js
++++ b/frontend/karole-frontend/src/app/admin/playlist/page.js
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import { useEffect, useState } from "react";
++import { useEffect, useState, useSyncExternalStore } from "react";
+ import { BACKEND_URI } from "../../../lib/config";
+ import { adminFetch } from "../../../lib/admin-auth";
+ import AdminHeader from "../../../components/admin-header";
+@@ -12,6 +12,10 @@ import shared from "../admin.module.css";
+ import styles from "./page.module.css";
+ import { getErrorMessage, statusMessage } from "../../../lib/api-error";
+ 
++const subscribeToHydration = () => () => {};
++const getHydratedSnapshot = () => true;
++const getServerSnapshot = () => false;
++
+ // Shows a length in seconds as minutes:seconds, for example 3725 becomes "62:05".
+ function formatDuration(totalSeconds) {
+     const minutes = Math.floor(totalSeconds / 60);
+@@ -45,6 +49,7 @@ export default function AdminPlaylist() {
+     const [draggedId, setDraggedId] = useState(null);
+     const [targetPositions, setTargetPositions] = useState({});
+     const queue = useQueueSettings();
++    const hydrated = useSyncExternalStore(subscribeToHydration, getHydratedSnapshot, getServerSnapshot);
+     // True once playback has run past the last song (playback.song is then that song).
+     const [finished, setFinished] = useState(false);
+ 
+@@ -256,7 +261,7 @@ export default function AdminPlaylist() {
+                         role="switch"
+                         aria-checked={queue.open}
+                         onClick={toggleQueue}
+-                        disabled={!queue.loaded}
++                        disabled={hydrated ? !queue.loaded : undefined}
+                     >
+                         <span className={styles.switchTrack} aria-hidden="true">
+                             <span className={styles.switchThumb} />
+diff --git a/frontend/karole-youtube-extension-firefox/manifest.json b/frontend/karole-youtube-extension-firefox/manifest.json
+index 8e757fe..c254b8f 100644
+--- a/frontend/karole-youtube-extension-firefox/manifest.json
++++ b/frontend/karole-youtube-extension-firefox/manifest.json
+@@ -24,7 +24,9 @@
+       "matches": [
+         "http://localhost/*",
+         "http://localhost:3000/*",
+-        "https://dhairyas-macbook-pro.tail512d14.ts.net/*"
++        "https://dhairyas-macbook-pro.tail512d14.ts.net/*",
++        "http://127.0.0.1:3000/*",
++        "http://127.0.0.1/*"
+       ],
+       "js": [
+         "site-bridge.js"
+diff --git a/frontend/karole-youtube-extension.zip b/frontend/karole-youtube-extension.zip
+deleted file mode 100644
+index c4ef42f..0000000
+Binary files a/frontend/karole-youtube-extension.zip and /dev/null differ
+diff --git a/frontend/karole-youtube-extension/manifest.json b/frontend/karole-youtube-extension/manifest.json
+index c45c3e8..be2fddf 100644
+--- a/frontend/karole-youtube-extension/manifest.json
++++ b/frontend/karole-youtube-extension/manifest.json
+@@ -14,7 +14,9 @@
+       "matches": [
+         "http://localhost/*",
+         "http://localhost:3000/*",
+-        "https://dhairyas-macbook-pro.tail512d14.ts.net/*"
++        "https://dhairyas-macbook-pro.tail512d14.ts.net/*",
++        "http://127.0.0.1:3000/*",
++        "http://127.0.0.1/*"
+       ],
+       "js": [
+         "site-bridge.js"

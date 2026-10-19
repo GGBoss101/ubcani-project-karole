@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
 import AdminHeader from "../../../components/admin-header";
@@ -11,6 +11,24 @@ import { formatLength, totalLength } from "../../../lib/queue-time";
 import shared from "../admin.module.css";
 import styles from "./page.module.css";
 import { getErrorMessage, statusMessage } from "../../../lib/api-error";
+
+const subscribeToHydration = () => () => {};
+const getHydratedSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+// A past session in the restore menu, e.g. "Oct 18, 1:51 AM · 4 songs (1 sung) · on "seasons"".
+function describeSession(session) {
+    const when = new Date(session.time * 1000).toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+    const count = `${session.song_count} ${session.song_count === 1 ? "song" : "songs"}`;
+    const sung = session.sung_count ? ` (${session.sung_count} sung)` : "";
+    const current = session.current_title ? ` · on "${session.current_title}"` : "";
+    return `${when} · ${count}${sung}${current}`;
+}
 
 // Shows a length in seconds as minutes:seconds, for example 3725 becomes "62:05".
 function formatDuration(totalSeconds) {
@@ -23,6 +41,9 @@ export default function AdminPlaylist() {
     const [songs, setSongs] = useState([]);
     // Songs deleted for being too long, which can't be added again until unblocked.
     const [blocked, setBlocked] = useState([]);
+    // Past sessions that can be restored from the log: null until the admin asks for them.
+    const [sessions, setSessions] = useState(null);
+    const [restoreLine, setRestoreLine] = useState("");
     const [status, setStatus] = useState("loading");
     const [error, setError] = useState("");
     const [playback, setPlayback] = useState({ playing: false, song: null });
@@ -45,6 +66,7 @@ export default function AdminPlaylist() {
     const [draggedId, setDraggedId] = useState(null);
     const [targetPositions, setTargetPositions] = useState({});
     const queue = useQueueSettings();
+    const hydrated = useSyncExternalStore(subscribeToHydration, getHydratedSnapshot, getServerSnapshot);
     // True once playback has run past the last song (playback.song is then that song).
     const [finished, setFinished] = useState(false);
 
@@ -195,6 +217,30 @@ export default function AdminPlaylist() {
         updatePlaylist(`/playlist/blocked?url_id=${encodeURIComponent(blockedSong.url_id)}`, { method: "DELETE" });
     }
 
+    async function loadSessions() {
+        setError("");
+        try {
+            const response = await adminFetch(`${BACKEND_URI}/playlist/sessions`, { cache: "no-store" });
+            const result = await response.json().catch(() => null);
+            if (!response.ok) {
+                throw new Error(getErrorMessage(result, response));
+            }
+            setSessions(result);
+            setRestoreLine(result.length ? String(result[0].line) : "");
+        } catch (requestError) {
+            setError(requestError.message);
+        }
+    }
+
+    async function restoreSession() {
+        const session = sessions?.find((entry) => String(entry.line) === restoreLine);
+        if (!session) return;
+        if (!window.confirm(`Restore the session from ${describeSession(session)}? It comes back paused.`)) return;
+        await updatePlaylist(`/playlist/restore?line=${session.line}`, { method: "POST" });
+        // The restore is itself logged, so the list now has a newer entry.
+        await loadSessions();
+    }
+
     function flushPlaylist() {
         if (!window.confirm("WARNING: this permanently deletes every song in the playlist.")) return;
         updatePlaylist("/playlist/flush", { method: "DELETE" });
@@ -256,7 +302,7 @@ export default function AdminPlaylist() {
                         role="switch"
                         aria-checked={queue.open}
                         onClick={toggleQueue}
-                        disabled={!queue.loaded}
+                        disabled={hydrated ? !queue.loaded : undefined}
                     >
                         <span className={styles.switchTrack} aria-hidden="true">
                             <span className={styles.switchThumb} />
@@ -453,6 +499,41 @@ export default function AdminPlaylist() {
                         </ul>
                     </div>
                 )}
+
+                <div className={styles.restore}>
+                    <h2>Restore a previous session</h2>
+                    <p>
+                        Brings back the queue from a past session, for example after the server stopped. Songs,
+                        order and the current song come back as they were, paused.
+                    </p>
+                    {sessions === null && (
+                        <button type="button" onClick={loadSessions}>Show previous sessions</button>
+                    )}
+                    {sessions?.length === 0 && <p>There are no previous sessions in the log yet.</p>}
+                    {sessions?.length > 0 && (
+                        <div className={styles.restoreRow}>
+                            <select
+                                value={restoreLine}
+                                onChange={(event) => setRestoreLine(event.target.value)}
+                                aria-label="Session to restore"
+                            >
+                                {sessions.map((session) => (
+                                    <option key={session.line} value={session.line}>
+                                        {describeSession(session)}
+                                    </option>
+                                ))}
+                            </select>
+                            <button type="button" onClick={restoreSession} disabled={songs.length > 0}>
+                                Restore
+                            </button>
+                        </div>
+                    )}
+                    {sessions?.length > 0 && songs.length > 0 && (
+                        <p className={styles.restoreHint}>
+                            Restoring replaces the whole queue, so flush the playlist first (below).
+                        </p>
+                    )}
+                </div>
 
                 <div className={shared.dangerZone}>
                     <p>Destructive actions</p>

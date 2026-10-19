@@ -1,6 +1,7 @@
 # Owns the playlist while the server runs: the songs in play order, which song is
 # playing, and the append-only JSON log of every change. Nothing is read back at
-# startup; the last line of the log is enough to recreate the object by hand.
+# startup; the admin restores a past session from the log instead (list_sessions,
+# Playlist.restore).
 import json
 import os
 import time
@@ -49,6 +50,7 @@ class Playlist:
             "time": time.time(),
             "playing": self.playing,
             "current_song_p_id": current_song_p_id,
+            "finished": self.finished,
             "songs": [song.model_dump() for song in self.songs],
         }
         with open(self.log_path, "a", encoding="utf-8") as log_file:
@@ -169,30 +171,56 @@ class Playlist:
         self.renumber_and_log()
 
     def requeue_songs_under_name(self, old_name_id: int, name_entry: NameEntry, combine_queues: bool = True) -> None:
-        # Punish mode: when a name is merged into another, its songs lose their places
-        # and are queued again, oldest first, as new songs of the name they now belong to.
-        # With combine_queues off, every song only changes owner and keeps its place.
-        # Songs already sung (and the one playing now) only change owner: moving the playing
-        # song would make skip jump over everything in between, and moving a sung one back
-        # into the queue would play it again.
+        # With combine_queues off, songs only change owner and keep their places. Otherwise,
+        # queue the combined owner's remaining songs as if both names had always been one:
+        # derive turn numbers from their original add times, then use those turns and times
+        # to rebuild their positions. Keep songs already sung and the current song in place.
         current_index = self.find_current_index()
-        sung = set()
-        songs_to_requeue = []
-        for index, song in enumerate(self.songs):
+        original_positions = {song.p_id: index for index, song in enumerate(self.songs)}
+        for song in self.songs:
             if song.name_id == old_name_id:
-                songs_to_requeue.append(song)
-                if current_index is not None and index <= current_index:
-                    sung.add(song.p_id)
-        songs_to_requeue.sort(key=lambda song: song.time)
+                # Keep the display name from when the song was added; only ownership changes.
+                song.name_id = name_entry.name_id
 
-        for song in songs_to_requeue:
-            # Only the owner changes: the song keeps showing the name it was added under.
-            song.name_id = name_entry.name_id
-            if song.p_id in sung or not combine_queues:
-                continue
-            self.songs.pop(self.find_index(song.p_id))
-            song.priority_num = self.find_priority_for_name(name_entry.name_id) + 1
-            self.songs.insert(self.find_insert_index(song.priority_num, song.time), song)
+        if combine_queues:
+            combined_songs = [song for song in self.songs if song.name_id == name_entry.name_id]
+            for priority, song in enumerate(
+                sorted(combined_songs, key=lambda item: (item.time, original_positions[item.p_id])),
+                start=1,
+            ):
+                song.priority_num = priority
+
+            start = current_index + 1 if current_index is not None else 0
+            queued_combined = [
+                song for song in self.songs[start:] if song.name_id == name_entry.name_id
+            ]
+            queued_ids = {song.p_id for song in queued_combined}
+            self.songs = [song for song in self.songs if song.p_id not in queued_ids]
+            queued_combined.sort(
+                key=lambda song: (
+                    line_up_time(song.priority_num, song.time),
+                    song.time,
+                    original_positions[song.p_id],
+                )
+            )
+            for song in queued_combined:
+                self.songs.insert(
+                    self.find_insert_index(song.priority_num, song.time),
+                    song,
+                )
+
+        self.renumber_and_log()
+
+    def restore(self, songs: list[PlaylistEntry], current_p_id: int | None, finished: bool) -> None:
+        # Puts a past session back exactly as it was logged, but paused, so nothing starts
+        # playing on its own. The restore is logged like any other change.
+        self.songs = songs
+        self.current_song = None
+        for song in songs:
+            if song.p_id == current_p_id:
+                self.current_song = song
+        self.playing = False
+        self.finished = finished and self.current_song is not None
         self.renumber_and_log()
 
     def playback_state(self) -> dict:
@@ -253,6 +281,87 @@ class Playlist:
     def jump(self, index: int) -> None:
         self.select_song(index)
         self.renumber_and_log()
+
+
+# Reading the log back, to restore a past session.
+# Log lines written before these fields were renamed use their old names.
+OLD_FIELD_NAMES = {"author": "song_name", "url_title": "youtube_title"}
+
+
+def read_log(log_path: str) -> list[tuple[int, dict]]:
+    # Every snapshot with its line number (counting from 1). A line cut short, say by the
+    # server stopping mid-write, is skipped.
+    snapshots = []
+    try:
+        with open(log_path, encoding="utf-8") as log_file:
+            for line_number, line in enumerate(log_file, start=1):
+                try:
+                    snapshot = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(snapshot, dict) and isinstance(snapshot.get("songs"), list):
+                    snapshots.append((line_number, snapshot))
+    except FileNotFoundError:
+        pass
+    return snapshots
+
+
+def is_fresh_start(previous: dict, current: dict) -> bool:
+    # Every change keeps at least one song as it was, so a snapshot that shares no song
+    # (same p_id, same video) with the one before it comes from a restarted server.
+    previous_songs = {song.get("p_id"): song.get("url_id") for song in previous["songs"]}
+    return not any(previous_songs.get(song.get("p_id"), object()) == song.get("url_id") for song in current["songs"])
+
+
+def describe_session(line_number: int, snapshot: dict) -> dict:
+    songs = snapshot["songs"]
+    current = None
+    for index, song in enumerate(songs):
+        if song.get("p_id") == snapshot.get("current_song_p_id"):
+            current = (index, song)
+    return {
+        "line": line_number,
+        "time": snapshot.get("time"),
+        "song_count": len(songs),
+        # Songs before the current one were sung (the current one too, once the queue ran out).
+        "sung_count": 0 if current is None else current[0] + (1 if snapshot.get("finished") else 0),
+        "current_title": None if current is None else current[1].get("youtube_title") or current[1].get("url_title"),
+    }
+
+
+def list_sessions(log_path: str, limit: int = 30) -> list[dict]:
+    # The last snapshot of each session, newest first. A session ends when the playlist is
+    # emptied (flush, or its last song deleted) or the server restarts.
+    sessions = []
+    last = None
+    for line_number, snapshot in read_log(log_path):
+        if not snapshot["songs"]:
+            if last is not None:
+                sessions.append(describe_session(*last))
+            last = None
+            continue
+        if last is not None and is_fresh_start(last[1], snapshot):
+            sessions.append(describe_session(*last))
+        last = (line_number, snapshot)
+    if last is not None:
+        sessions.append(describe_session(*last))
+    return list(reversed(sessions))[:limit]
+
+
+def read_snapshot(log_path: str, line_number: int) -> dict | None:
+    for number, snapshot in read_log(log_path):
+        if number == line_number:
+            return snapshot
+    return None
+
+
+def songs_from_snapshot(snapshot: dict) -> list[PlaylistEntry]:
+    # Raises pydantic's ValidationError if a logged song no longer fits PlaylistEntry.
+    songs = []
+    for song in snapshot["songs"]:
+        renamed = {OLD_FIELD_NAMES.get(key, key): value for key, value in song.items()}
+        songs.append(PlaylistEntry(**renamed))
+    return songs
 
 
 playlist_store = Playlist(PLAYLIST_LOG_PATH)

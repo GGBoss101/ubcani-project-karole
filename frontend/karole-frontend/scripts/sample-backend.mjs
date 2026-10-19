@@ -12,6 +12,7 @@ let nextSongId = 1;
 let songs = [];
 let current = 0;
 let playing = false;
+let queueOpen = true;
 
 function addSong({ url, name, author }, title, seconds) {
     const song = {
@@ -103,7 +104,9 @@ const routes = {
     "GET /playlist/": () => [200, songs],
     "GET /playlist/now-playing": () => [200, songs[current] ?? null],
     "GET /playlist/queue-finished": () => [200, false],
+    "GET /playlist/queue-settings": () => [200, { open: queueOpen }],
     "POST /playlist/add": ({ body }) => {
+        if (!queueOpen) return [403, { detail: "Queue is closed" }];
         if (!body.url || !body.name || !body.author) return [422, { detail: "Please fill in every field." }];
         try { new URL(body.url); } catch { return [422, { detail: "That doesn't look like a link." }]; }
         if (findName(body.name)?.blacklist) return [403, { detail: "This name is not allowed to add songs." }];
@@ -133,6 +136,11 @@ const routes = {
     },
 
     // Admin: queue
+    "POST /playlist/queue-settings": ({ body }) => {
+        if (typeof body.open !== "boolean") return [422, { detail: "Send { open: true } or { open: false }" }];
+        queueOpen = body.open;
+        return [200, { open: queueOpen }];
+    },
     "POST /playlist/move": ({ body }) => {
         const from = songs.findIndex((song) => song.p_id === body.p_id);
         if (from < 0 || !songs[body.order_num]) return [404, { detail: "Song not found" }];
@@ -233,6 +241,7 @@ const PUBLIC = new Set([
     "GET /playlist/",
     "GET /playlist/now-playing",
     "GET /playlist/queue-finished",
+    "GET /playlist/queue-settings",
     "POST /playlist/add",
     "POST /auth/login",
     "POST /auth/logout",

@@ -1,7 +1,7 @@
-// Whether merging one name into another also combines their queues (the merged name's
-// waiting songs line up again as the other person's next songs) or only relabels the
-// songs, which keep their places. Set on the Names page; matching on the Operations page
-// follows it too. Kept in this browser only, and on unless switched off.
+// Whether merging one name into another also combines their queues (both names' songs
+// count as one person's turns and the waiting ones line up again) or only relabels the
+// songs, which keep their places. Shown on both the Names and Operations pages, which
+// share this one setting. Kept in this browser only, and on unless switched off.
 const STORAGE_KEY = "karole-combine-queues";
 
 export function loadCombineQueues() {

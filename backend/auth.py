@@ -18,7 +18,7 @@ if not JWT_SECRET or not ADMIN_USERNAME or not ADMIN_PASSWORD:
     raise RuntimeError("JWT_SECRET, ADMIN_USERNAME, and ADMIN_PASSWORD must be set")
 
 ADMIN_COOKIE_NAME = "karole_admin_token"
-LOGIN_LIFETIME = timedelta(hours=2)
+LOGIN_LIFETIME = timedelta(hours=5)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

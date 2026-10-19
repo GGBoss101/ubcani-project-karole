@@ -280,7 +280,7 @@ export default function AdminNames() {
                     <span>
                         <strong>Combine queues when merging names</strong>
                         {combineQueues
-                            ? "The merged name's waiting songs go to the back as that person's next songs."
+                            ? "Both names' songs count as one person's turns. Their waiting songs line up again with the usual 10–30 minute delay, counted from when each song was added. Songs already sung stay where they are."
                             : "The merged name's songs keep their places and only change name."}
                     </span>
                 </label>

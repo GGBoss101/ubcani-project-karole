@@ -1,7 +1,16 @@
-from models import PlaylistInput, NameInput, PlaylistEntry, PlaylistSwap, PlaylistMove, PlaylistJump
+from models import (
+    PlaylistInput,
+    NameInput,
+    PlaylistEntry,
+    PlaylistSwap,
+    PlaylistMove,
+    PlaylistJump,
+    QueueSettingsInput,
+)
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from name import name
-from playlist.playlist_store import playlist_store
+from playlist.playlist_store import playlist_store, list_sessions, read_snapshot, songs_from_snapshot
+from pydantic import ValidationError
 from database import client
 import asyncio
 import os
@@ -10,6 +19,7 @@ from typing import Any, cast
 from html.parser import HTMLParser
 from urllib.request import Request as UrlRequest, urlopen
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import DownloadError
 from auth import require_admin
 from fastapi.responses import StreamingResponse
 
@@ -36,14 +46,12 @@ prefetch_tasks: set[asyncio.Task] = set()
 
 def extract_video_info(url: str) -> dict:
     options = _yt_dlp_options()
-    with YoutubeDL(cast(Any, options)) as downloader:
-        return cast(dict, downloader.extract_info(url, download=False))
+    return _extract_info_with_auth_fallback(url, options)
 
 def extract_playback_url(url: str) -> str | None:
     options = _yt_dlp_options()
     options["format"] = "best[ext=mp4]/best"
-    with YoutubeDL(cast(Any, options)) as downloader:
-        video_info = cast(dict, downloader.extract_info(url, download=False))
+    video_info = _extract_info_with_auth_fallback(url, options)
     return video_info.get("url")
 
 def extract_playback_formats(url: str) -> tuple[str, str | None]:
@@ -51,8 +59,7 @@ def extract_playback_formats(url: str) -> tuple[str, str | None]:
     # 1080p H.264 with AAC audio: every browser decodes it in hardware. Plain "bestvideo"
     # picks 4K AV1 when a video has it, which stutters and uses three times the bandwidth.
     options["format"] = "bestvideo[height<=1080][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best"
-    with YoutubeDL(cast(Any, options)) as downloader:
-        video_info = cast(dict, downloader.extract_info(url, download=False))
+    video_info = _extract_info_with_auth_fallback(url, options)
     requested_formats = video_info.get("requested_formats") or []
     if len(requested_formats) >= 2:
         return requested_formats[0]["url"], requested_formats[1]["url"]
@@ -64,17 +71,25 @@ def extract_playback_formats(url: str) -> tuple[str, str | None]:
     )
 
 def _yt_dlp_options() -> dict:
-    opts = {
+    return {
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
         # A watch URL with a "list=" parameter would otherwise be read as the whole playlist.
         "noplaylist": True,
     }
-    cookie_file = os.getenv("YTDLP_COOKIE_FILE")
-    if cookie_file and os.path.exists(cookie_file):
-        opts["cookiefile"] = cookie_file
-    return opts
+
+def _extract_info_with_auth_fallback(url: str, options: dict) -> dict:
+    try:
+        with YoutubeDL(cast(Any, options)) as downloader:
+            return cast(dict, downloader.extract_info(url, download=False))
+    except DownloadError:
+        cookie_file = os.getenv("YTDLP_COOKIE_FILE")
+        if not cookie_file or not os.path.isfile(cookie_file) or options.get("cookiefile") == cookie_file:
+            raise
+        authenticated_options = {**options, "cookiefile": cookie_file}
+        with YoutubeDL(cast(Any, authenticated_options)) as downloader:
+            return cast(dict, downloader.extract_info(url, download=False))
 
 class ChannelIconParser(HTMLParser):
     def __init__(self):
@@ -130,8 +145,7 @@ def search_videos(query: str) -> list[dict]:
     options = _yt_dlp_options()
     # Flat: only the search results page is read, not every video, so it takes about a second.
     options["extract_flat"] = True
-    with YoutubeDL(cast(Any, options)) as downloader:
-        results = cast(dict, downloader.extract_info(f"ytsearch{SEARCH_RESULT_COUNT}:{query}", download=False))
+    results = _extract_info_with_auth_fallback(f"ytsearch{SEARCH_RESULT_COUNT}:{query}", options)
     videos = []
     for entry in results.get("entries") or []:
         video_id = entry.get("id")
@@ -148,6 +162,14 @@ def search_videos(query: str) -> list[dict]:
         })
     return videos
 
+queue_settings_col = client["queue_settings"]
+queue_settings_lock = asyncio.Lock()
+
+
+async def is_queue_open() -> bool:
+    settings = await queue_settings_col.find_one({"_id": "queue"})
+    return settings is None or settings.get("open") is True
+
 @router.get("/search")
 async def search(q: str = Query(min_length=1, max_length=100)) -> list[dict]:
     try:
@@ -159,6 +181,8 @@ async def search(q: str = Query(min_length=1, max_length=100)) -> list[dict]:
 async def add_song(body: PlaylistInput):
     date = time.time()
 
+    if not await is_queue_open():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Queue is closed")
     if playlist_store.find_song_by_url(body.service, body.url_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Song exists in playlist")
     # Checked before the slow YouTube lookup below.
@@ -192,9 +216,26 @@ async def add_song(body: PlaylistInput):
         "file_loc": None,
         "is_downloaded": False,
     }
-    priority_num = playlist_store.find_priority_for_name(playlist_entry["name_id"]) + 1
-    playlist_store.add_song(playlist_entry, priority_num)
+    async with queue_settings_lock:
+        if not await is_queue_open():
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Queue is closed")
+        priority_num = playlist_store.find_priority_for_name(playlist_entry["name_id"]) + 1
+        playlist_store.add_song(playlist_entry, priority_num)
     return playlist_entry
+
+@router.get("/queue-settings")
+async def get_queue_settings() -> dict[str, bool]:
+    return {"open": await is_queue_open()}
+
+@router.post("/queue-settings", dependencies=[Depends(require_admin)])
+async def set_queue_settings(body: QueueSettingsInput) -> dict[str, bool]:
+    async with queue_settings_lock:
+        await queue_settings_col.update_one(
+            {"_id": "queue"},
+            {"$set": {"open": body.open}},
+            upsert=True,
+        )
+    return {"open": body.open}
 
 @router.get("/")
 async def get_playlist() -> list[PlaylistEntry]:
@@ -348,6 +389,32 @@ async def unblock(url_id: str) -> dict[str, str]:
     if result.deleted_count == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blocked song not found")
     return {"message": "Song unblocked"}
+
+@router.get("/sessions", dependencies=[Depends(require_admin)])
+async def get_sessions() -> list[dict]:
+    # Past sessions that can be restored, newest first (see list_sessions).
+    return await asyncio.to_thread(list_sessions, playlist_store.log_path)
+
+@router.post("/restore", dependencies=[Depends(require_admin)])
+async def restore(line: int) -> list[PlaylistEntry]:
+    # Restoring replaces the whole playlist, so it only runs on an empty one.
+    if playlist_store.songs:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The playlist still has songs. Flush it first, then restore the session.",
+        )
+    snapshot = await asyncio.to_thread(read_snapshot, playlist_store.log_path, line)
+    if snapshot is None or not snapshot["songs"]:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="That session wasn't found in the log.")
+    try:
+        songs = songs_from_snapshot(snapshot)
+    except ValidationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="That session's songs couldn't be read back from the log.",
+        ) from error
+    playlist_store.restore(songs, snapshot.get("current_song_p_id"), bool(snapshot.get("finished")))
+    return playlist_store.songs
 
 @router.post("/keep", dependencies=[Depends(require_admin)])
 async def keep(playlist_id: int) -> PlaylistEntry:

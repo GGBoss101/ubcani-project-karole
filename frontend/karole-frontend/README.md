@@ -35,7 +35,6 @@ src/
       names/                    Manage singer names (drag, or tap on touch screens)
       operations/               Approve or ignore suggested name matches
       view/                     Full-screen video player for the karaoke screen
-    api/queue-settings/         The only server-side code: the "taking songs" switch
   components/                   Headers and the queue card (QueueItem)
   lib/                          Data hooks and helpers (see below)
 scripts/sample-backend.mjs      Stand-in backend with fake data, for working without MongoDB
@@ -56,10 +55,13 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
 - **Singer names.** After someone's first song, their name is remembered in a cookie,
   `karole-user-name`, for a year, and the name field locks, so later songs count as theirs
   for queue order. A mistyped name can be merged into the right one on Admin → Names.
-- **Queue switch.** `app/api/queue-settings/route.js` stores `{ "open": true|false }` in
-  `.karole-settings.json` next to the site. Only a valid admin login can change it (the
-  route checks the cookie with the backend). It hides the Add song form; the backend itself
-  doesn't know about it.
+  The "Combine queues when merging names" checkbox appears on both the Names and Operations
+  pages and shares one setting (saved per browser, on by default); Match and Match all
+  follow it.
+- **Queue switch.** The backend stores `{ "open": true|false }` in MongoDB and checks it
+  before inserting each song, including after the YouTube lookup finishes. Anyone can read
+  the setting; only an authenticated admin can change it. The Add song form also hides while
+  the queue is closed, but the backend enforces the restriction.
 
 ## Helpers in `src/lib`
 
@@ -124,11 +126,53 @@ Then open http://localhost:3000. Admin pages are under `/admin/login`.
 | `npm run lint` | Check the code. |
 | `npm run sample-backend` | Fake backend on port 8000 (admin password `karole`), when MongoDB isn't set up. |
 
+## Restoring a previous playlist session
+
+If the backend stops (a crash, a restart, the laptop shutting down), the queue is empty when it
+comes back. The previous queue can be brought back from the admin Playlist page.
+
+### How to restore
+
+1. Start the backend again (see "Running it") and open **/admin/playlist**.
+2. If the playlist isn't empty, click **Flush playlist database** at the bottom first. Restoring
+   replaces the whole queue, so it only works on an empty one.
+3. In **Restore a previous session**, click **Show previous sessions**.
+4. Pick a session from the menu. Each one shows when it ended, how many songs it had, how many had
+   been sung, and the song it was on, e.g. `Oct 18, 1:51 AM · 4 songs (1 sung) · on "seasons"`.
+   The newest is at the top, and that's normally the one the server was running when it stopped.
+5. Click **Restore** and confirm. The songs, their order and the current song come back exactly
+   as they were. Playback is **paused**: press Play when you're ready.
+
+People can carry on adding songs straight away; new songs line up after the restored ones as
+usual. Restoring is itself logged, so it's safe to restore again later if needed.
+
+### How the playlist is stored
+
+- While the backend runs, the queue lives only in its memory (`backend/playlist/playlist_store.py`).
+- After every change (a song added, deleted, moved, skipped, play/pause, a name merge, a flush,
+  a restore) the backend adds one line to `backend/playlist/playlist_log.jsonl`. Each line is a
+  complete snapshot in JSON: the time, whether it was playing, the current song, whether the queue
+  had run out, and every song with all its details (singer, song name, YouTube title and link,
+  length, place in line...). Nothing is ever overwritten; the file only grows.
+- A **session** is a run of snapshots that ends when the playlist is emptied (flush, or its last
+  song deleted) or the server restarts. The menu offers the last snapshot of each session (up to 30).
+- The log isn't committed to git (it's in `.gitignore`) and stays on the computer running the
+  backend. Copy it somewhere to keep a backup; deleting it removes every restore point.
+- Names and songs blocked for being too long are in MongoDB, not the log, so they survive restarts
+  on their own and still match a restored queue.
+- Older log lines use the field names from before the rename (`author`, `url_title`); restoring
+  converts them, so older sessions restore too.
+
+Behind the page: `GET /playlist/sessions` lists the sessions and `POST /playlist/restore?line=N`
+restores the one ending on line N of the log (both need the admin login).
+
 ## Known limits
 
-- The backend keeps the queue in memory, so restarting it empties the queue.
+- The backend keeps the queue in memory, so restarting it empties the queue. It can be restored
+  from the admin Playlist page (see "Restoring a previous playlist session").
 - YouTube sometimes blocks the backend's lookups ("confirm you're not a bot"). Giving the
-  backend a cookies file through `YTDLP_COOKIE_FILE` in `backend/.env` fixes that.
+  backend a cookies file through `YTDLP_COOKIE_FILE` in `backend/.env` lets yt-dlp retry failed
+  lookups using that authenticated session. Normal lookups are attempted first.
 - The queue switch only hides the form; someone calling the backend directly could still add songs.
 - Going online: the backend should stay on a home or campus connection (YouTube blocks cloud
   servers), published with something like Cloudflare Tunnel. The site already passes backend requests

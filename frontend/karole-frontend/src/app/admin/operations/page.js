@@ -7,13 +7,14 @@ import AdminHeader from "../../../components/admin-header";
 import shared from "../admin.module.css";
 import styles from "./page.module.css";
 import { getErrorMessage, statusMessage } from "../../../lib/api-error";
-import { loadCombineQueues } from "../../../lib/merge-queues";
+import { loadCombineQueues, saveCombineQueues } from "../../../lib/merge-queues";
 
 export default function AdminOperations() {
     const [operations, setOperations] = useState([]);
     const [status, setStatus] = useState("loading");
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
+    const [combineQueues, setCombineQueues] = useState(true);
 
     async function loadOperations() {
         try {
@@ -29,15 +30,21 @@ export default function AdminOperations() {
 
     useEffect(() => {
         Promise.resolve().then(loadOperations);
+        Promise.resolve().then(() => setCombineQueues(loadCombineQueues()));
     }, []);
+
+    function changeCombineQueues(combine) {
+        setCombineQueues(combine);
+        saveCombineQueues(combine);
+    }
 
     async function runOperation(url, operationId, confirmation) {
         if (confirmation && !window.confirm(confirmation)) return;
         setError("");
         setMessage("");
         try {
-            // Matching merges two names, so it follows the Names page's combine queues setting.
-            const query = url.includes("handle") ? `?combine_queues=${loadCombineQueues()}` : "";
+            // Matching merges two names, so it follows the combine queues checkbox.
+            const query = url.includes("handle") ? `?combine_queues=${combineQueues}` : "";
             const response = await adminFetch(`${BACKEND_URI}${url}${query}`, {
                 method: url.includes("delete") ? "DELETE" : "POST",
                 headers: { "Content-Type": "application/json" },
@@ -72,7 +79,7 @@ export default function AdminOperations() {
         setError("");
         setMessage("");
         try {
-            const response = await adminFetch(`${BACKEND_URI}/operation/handle_all?combine_queues=${loadCombineQueues()}`, {
+            const response = await adminFetch(`${BACKEND_URI}/operation/handle_all?combine_queues=${combineQueues}`, {
                 method: "POST",
             });
             const result = await response.json().catch(() => null);
@@ -103,6 +110,20 @@ export default function AdminOperations() {
 
                 {error && <p className={shared.error} role="alert">{error}</p>}
                 {message && <p className={shared.success} role="status">{message}</p>}
+                <label className={styles.combineQueues}>
+                    <input
+                        type="checkbox"
+                        checked={combineQueues}
+                        onChange={(event) => changeCombineQueues(event.target.checked)}
+                    />
+                    <span>
+                        <strong>Combine queues when merging names</strong>
+                        {combineQueues
+                            ? "Both names' songs count as one person's turns. Their waiting songs line up again with the usual 10–30 minute delay, counted from when each song was added. Songs already sung stay where they are."
+                            : "The merged name's songs keep their places and only change name."}
+                    </span>
+                </label>
+
                 {status === "loading" && <p className={shared.message}>Loading pending operations...</p>}
                 {status === "ready" && operations.length === 0 && (
                     <p className={shared.message}>No pending operations.</p>

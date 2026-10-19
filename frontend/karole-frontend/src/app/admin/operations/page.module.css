@@ -50,3 +50,33 @@
     width: 100%;
   }
 }
+
+.combineQueues {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin: 1.25rem 0;
+  max-width: 40rem;
+  cursor: pointer;
+}
+
+.combineQueues input {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.125rem;
+  accent-color: var(--aqua);
+}
+
+.combineQueues span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.combineQueues strong {
+  color: var(--text);
+  font-weight: 600;
+}
