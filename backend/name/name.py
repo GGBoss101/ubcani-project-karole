@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from database import client
-from models import NameChange, NameInput, NameEntry, OperationInput
+from models import NameChange, NameInput, NameEntry, OperationInput, PlaylistEntry
 from pending_operation import pending_operation
 from playlist.playlist_store import playlist_store
 from auth import require_admin
@@ -23,10 +23,34 @@ alt_to_name_op = {}
 MAX_ATTEMPTS = 2
 
 async def find_last_id() -> int:
+    # The next free name_id: above every name, and above every song still in the queue. After
+    # the names are flushed the queued songs keep their old name_ids, and a new name must not
+    # take one over, or it would inherit that person's songs and turns.
     last_doc = await col.find().sort("name_id", -1).limit(1).to_list(1)
-    if last_doc:
-        return last_doc[0]["name_id"] + 1
-    return 0
+    highest = last_doc[0]["name_id"] if last_doc else -1
+    for song in playlist_store.songs:
+        highest = max(highest, song.name_id)
+    return highest + 1
+
+async def find_name(name: str) -> dict | None:
+    # The name entry that has this as its main or alternate name.
+    return await col.find_one({"$or": [{"name": name}, {"name_alt": name}]})
+
+async def relink_restored_songs(songs: list[PlaylistEntry]) -> None:
+    # Songs brought back from the log keep the name_ids they had then, which may not match
+    # today's names. Each song is matched by the name it shows against today's names, main or
+    # alternate, and belongs to that person; a name nobody has yet is added just as when a singer
+    # adds a first song, merge suggestion included. Names already there are never changed, and
+    # nothing moves in the queue.
+    new_ids: dict[str, int] = {}
+    for song in sorted(songs, key=lambda song: song.time):
+        if song.name not in new_ids:
+            try:
+                new_ids[song.name] = (await read_name(NameInput(name=song.name)))["entry"].name_id
+            except HTTPException:
+                # The name was added, but suggesting a merge for it failed (one already exists).
+                new_ids[song.name] = (await find_name(song.name))["name_id"]
+        song.name_id = new_ids[song.name]
 
 def find_sim(name: str, name_list: list[NameEntry]) -> tuple[float, NameEntry | None]:
     if not name_list:

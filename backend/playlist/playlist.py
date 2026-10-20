@@ -413,6 +413,9 @@ async def restore(line: int) -> list[PlaylistEntry]:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="That session's songs couldn't be read back from the log.",
         ) from error
+    # Point the songs at today's names, adding any that are missing; existing names stay as they
+    # are, and the queue comes back in its saved order.
+    await name.relink_restored_songs(songs)
     playlist_store.restore(songs, snapshot.get("current_song_p_id"), bool(snapshot.get("finished")))
     return playlist_store.songs
 

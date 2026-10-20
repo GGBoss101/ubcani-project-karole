@@ -5,7 +5,8 @@ import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
 import { statusMessage } from "../../../lib/api-error";
 import { fetchQueueFinished } from "../../../lib/use-playlist";
-import { detectExtension } from "../../../lib/youtube-window";
+import { detectExtension, extensionAdvancesQueue } from "../../../lib/youtube-window";
+import { startTicker } from "../../../lib/background-ticker";
 import StreamPlayer from "./stream-player";
 import WindowPlayer from "./window-player";
 import styles from "./page.module.css";
@@ -16,6 +17,7 @@ export default function AdminView() {
     // "window" when the Karole YouTube Controller extension is installed (songs play in a
     // real YouTube window), "stream" for the built-in player, null while checking.
     const [mode, setMode] = useState(null);
+    const [extensionVersion, setExtensionVersion] = useState(null);
     // Goes up with every button press. A status check that was already on its way when a button
     // was pressed may carry the state from before it (over a slow link it can arrive after the
     // press is done), so its answer is ignored rather than undoing the press.
@@ -24,13 +26,20 @@ export default function AdminView() {
     const controlQueue = useRef(Promise.resolve());
 
     useEffect(() => {
-        detectExtension().then((version) => setMode(version ? "window" : "stream"));
+        detectExtension().then((version) => {
+            setExtensionVersion(version);
+            setMode(version ? "window" : "stream");
+        });
     }, []);
 
     useEffect(() => {
         let isActive = true;
+        // A slow answer isn't overlapped by the next check; that one is just skipped.
+        let checking = false;
 
         async function pollPlayback() {
+            if (checking) return;
+            checking = true;
             const startedAt = controlCount.current;
             try {
                 const response = await adminFetch(`${BACKEND_URI}/playlist/current-play`, { cache: "no-store" });
@@ -47,14 +56,18 @@ export default function AdminView() {
                 }
             } catch (requestError) {
                 if (isActive) setError(requestError.message);
+            } finally {
+                checking = false;
             }
         }
 
         pollPlayback();
-        const timer = window.setInterval(pollPlayback, 500);
+        // Kept up even while this tab is in the background, so a song changed on the Playlist
+        // page reaches the YouTube window straight away.
+        const stopTicker = startTicker(pollPlayback, 500);
         return () => {
             isActive = false;
-            window.clearInterval(timer);
+            stopTicker();
         };
     }, []);
 
@@ -101,6 +114,7 @@ export default function AdminView() {
                     song={song}
                     playing={playback.playing}
                     onEnded={skip}
+                    extensionAdvances={extensionAdvancesQueue(extensionVersion)}
                     onPlayPause={() => control("play_pause")}
                     onBack={() => control("back")}
                     onSkip={skip}

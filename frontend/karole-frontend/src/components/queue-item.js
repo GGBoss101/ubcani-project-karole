@@ -1,7 +1,7 @@
 import SongThumbnail from "./song-thumbnail";
 import styles from "./queue-item.module.css";
 
-// One song in the live queue. "compact" drops the channel and song name for small previews,
+// One song in the live queue. "compact" drops the singer and channel for small previews,
 // "nowPlaying" spotlights the song being sung, and "played" fades out songs already sung.
 export default function QueueItem({ song, position, compact = false, nowPlaying = false, played = false }) {
     const classNames = [styles.item, compact && styles.compact, nowPlaying && styles.nowPlaying, played && styles.played];
@@ -10,14 +10,22 @@ export default function QueueItem({ song, position, compact = false, nowPlaying 
             <span className={styles.position}>{String(position).padStart(2, "0")}</span>
             <SongThumbnail song={song} className={styles.thumb} />
             <div className={styles.details}>
-                {nowPlaying && <span className={styles.badge}>Now singing</span>}
-                <a className={styles.title} href={song.url} target="_blank" rel="noreferrer">
-                    {song.youtube_title}
-                </a>
+                <div className={styles.titleRow}>
+                    {nowPlaying && (
+                        <span className={styles.badge}>
+                            Now<span className={styles.badgeMore}> singing</span>
+                        </span>
+                    )}
+                    <a className={styles.title} href={song.url} target="_blank" rel="noreferrer" title={song.youtube_title}>
+                        {song.youtube_title}
+                    </a>
+                </div>
+                {/* The song name, singer and channel each get their own line, and a line is kept
+                    even when it's empty, so every card in the list has the same shape. */}
                 <p className={styles.meta}>
-                    <span className={styles.singer}>{song.name}</span>
-                    {!compact && song.song_name && <span>{song.song_name}</span>}
-                    {!compact && song.url_creator && <span>{song.url_creator}</span>}
+                    <span className={styles.songName} title={song.song_name || undefined}>{song.song_name || "\u00a0"}</span>
+                    {!compact && <span title={song.name}>{song.name}</span>}
+                    {!compact && <span title={song.url_creator || undefined}>{song.url_creator || "\u00a0"}</span>}
                 </p>
             </div>
         </li>

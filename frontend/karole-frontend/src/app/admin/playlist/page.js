@@ -7,6 +7,7 @@ import AdminHeader from "../../../components/admin-header";
 import SongThumbnail from "../../../components/song-thumbnail";
 import { useQueueSettings } from "../../../lib/use-queue-settings";
 import { fetchQueueFinished } from "../../../lib/use-playlist";
+import { steerYouTubeWindow } from "../../../lib/youtube-window";
 import { formatLength, totalLength } from "../../../lib/queue-time";
 import shared from "../admin.module.css";
 import styles from "./page.module.css";
@@ -123,13 +124,18 @@ export default function AdminPlaylist() {
         await refreshPlayback();
     }
 
+    // Only runs after a change made on this page, which then also tells the YouTube window
+    // directly rather than waiting for the player page to notice.
     async function refreshPlayback() {
         const response = await adminFetch(`${BACKEND_URI}/playlist/current-play`, { cache: "no-store" });
         if (!response.ok) {
             throw new Error(statusMessage(response.status));
         }
-        setPlayback(await response.json());
-        setFinished(await fetchQueueFinished());
+        const nextPlayback = await response.json();
+        const nextFinished = await fetchQueueFinished();
+        setPlayback(nextPlayback);
+        setFinished(nextFinished);
+        steerYouTubeWindow(nextPlayback, nextFinished);
     }
 
     // Back, play/pause and skip: the same backend routes the player page uses.
@@ -176,6 +182,7 @@ export default function AdminPlaylist() {
             }
             setPlayback(result);
             setFinished(false);
+            steerYouTubeWindow(result, false);
         } catch (requestError) {
             setError(requestError.message);
         }

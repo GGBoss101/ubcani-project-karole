@@ -1,5 +1,8 @@
-// Relays messages between the Karole player page and the YouTube window it controls.
-// Service workers can be stopped at any time, so the window's tab id lives in session storage.
+// Relays messages between the Karole pages and the YouTube window they control, and moves the
+// queue on when a song ends there. Any Karole page can steer the window, not only the player
+// page, so a change made on the admin Playlist page reaches it even while the player page is
+// asleep in a background tab. Service workers can be stopped at any time, so the window's tab
+// id and the rest of the state live in session storage.
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 
@@ -60,30 +63,96 @@ async function tellYouTube(message) {
     return true;
 }
 
-// Opens the YouTube window, or reuses it, and points it at a song.
-async function loadVideo(videoId, playing, start) {
-    await browser.storage.session.set({ desired: { videoId, playing, start: start || 0 }, needsFreshPage: false });
+function videoInUrl(url) {
+    try {
+        return new URL(url).searchParams.get("v");
+    } catch {
+        return null;
+    }
+}
+
+// Opens the YouTube window, or reuses it, and points it at a song (pId is its place in the
+// queue). The same song asked for again, say by the player page once it wakes up after the
+// Playlist page already sent it, only gets its play/pause state applied instead of starting over;
+// `force` reloads it anyway. With `onlyIfOpen` no window is opened: opening it is the player
+// page's job. Returns whether the window was pointed at the song.
+async function loadVideo(videoId, playing, start, { pId = null, onlyIfOpen = false, force = false } = {}) {
+    const openTab = await getYouTubeTab();
+    if (!openTab && onlyIfOpen) return false;
+    if (openTab && !force && pId !== null) {
+        const { desired, needsFreshPage } = await browser.storage.session.get(["desired", "needsFreshPage"]);
+        if (!needsFreshPage && desired?.pId === pId && videoInUrl(openTab.url) === videoId) {
+            if (desired.playing !== playing) {
+                await browser.storage.session.set({ desired: { ...desired, playing } });
+                await tellYouTube({ type: playing ? "play" : "pause" });
+            }
+            return true;
+        }
+    }
+    await browser.storage.session.set({
+        desired: { videoId, pId, playing, start: start || 0 },
+        needsFreshPage: false,
+        endedPId: null,
+    });
     const url = watchUrl(videoId, start);
     const tab = await getYouTubeTab();
     if (tab) {
         await browser.tabs.update(tab.id, { url });
-        return;
+        return true;
     }
     const window = await browser.windows.create({ url, type: "popup", width: 1280, height: 760 });
     await browser.storage.session.set({ youtubeTabId: window.tabs[0].id });
+    return true;
 }
 
-async function fromSite(message, tab) {
+// The Karole backend, reached through the site that last talked to the extension (its /backend
+// pass-through), with that site's admin login.
+async function fromBackend(path, options = {}) {
+    const { siteOrigin } = await browser.storage.session.get("siteOrigin");
+    if (!siteOrigin) throw new Error("No Karole page has talked to the extension yet");
+    const response = await fetch(`${siteOrigin}/backend${path}`, { ...options, credentials: "include", cache: "no-store" });
+    if (!response.ok) throw new Error(`${path} answered ${response.status}`);
+    return response.json();
+}
+
+// The song `pId` finished in the YouTube window: move the queue on and play what comes next.
+// Returns false when the backend couldn't be reached, so a player page can do it instead.
+async function advanceAfter(pId) {
+    try {
+        const current = await fromBackend("/playlist/current-play");
+        // Someone already moved on (say skip was pressed in the song's last second).
+        if (current.song?.p_id !== pId) return true;
+        const next = await fromBackend("/playlist/skip", { method: "POST" });
+        const finished = await fromBackend("/playlist/queue-finished");
+        const videoId = next.song?.url_id;
+        if (!finished && next.song && VIDEO_ID.test(videoId || "")) {
+            await loadVideo(videoId, Boolean(next.playing), 0, { pId: next.song.p_id });
+        }
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function fromSite(message, tab, senderUrl) {
     const state = await getState();
     if (!state.siteTabIds.includes(tab.id)) {
         await browser.storage.session.set({ siteTabIds: [...state.siteTabIds, tab.id] });
     }
+    // Where the backend is: the song-end handling below talks to it through this site.
+    const siteOrigin = senderUrl ? new URL(senderUrl).origin : null;
+    if (siteOrigin) await browser.storage.session.set({ siteOrigin });
 
     switch (message.type) {
         case "load":
             if (!VIDEO_ID.test(message.videoId || "")) return { ok: false, error: "Not a YouTube video id" };
-            await loadVideo(message.videoId, Boolean(message.playing), Number(message.start) || 0);
-            return { ok: true };
+            return {
+                ok: await loadVideo(message.videoId, Boolean(message.playing), Number(message.start) || 0, {
+                    pId: Number.isInteger(message.pId) ? message.pId : null,
+                    onlyIfOpen: Boolean(message.onlyIfOpen),
+                    force: Boolean(message.force),
+                }),
+            };
         case "play":
         case "pause": {
             if (state.desired) {
@@ -146,6 +215,16 @@ async function fromYouTube(message, tab) {
         const status = { ...message.status, fullscreen: window?.state === "fullscreen" };
         await browser.storage.session.set({ lastStatus: status });
         await tellSites({ type: "status", status });
+        // The queue's song finished (not an ad before it): move on from here, so it happens even
+        // while the player page is asleep. Each song is only moved on from once.
+        if (status.state === "ended" && !status.ad && desired?.pId != null && status.videoId === desired.videoId) {
+            const { endedPId } = await browser.storage.session.get("endedPId");
+            if (endedPId !== desired.pId) {
+                await browser.storage.session.set({ endedPId: desired.pId });
+                const handled = await advanceAfter(desired.pId);
+                await tellSites({ type: "song-ended", pId: desired.pId, handled });
+            }
+        }
     }
     return { ok: true };
 }
@@ -162,7 +241,7 @@ function oneAtATime(task) {
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!sender.tab) return false;
     const handler = message.from === "youtube" ? fromYouTube : fromSite;
-    oneAtATime(() => handler(message, sender.tab))
+    oneAtATime(() => handler(message, sender.tab, sender.url))
         .then(sendResponse)
         .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true; // the answer is sent asynchronously

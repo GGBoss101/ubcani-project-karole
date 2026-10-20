@@ -89,12 +89,16 @@ class Playlist:
 
     def find_priority_for_name(self, name_id: int) -> int:
         # A person's songs are numbered 1, 2, 3... so everyone gets a first turn
-        # before anyone gets a second one. Returns 0 when they have no songs yet.
+        # before anyone gets a second one. Returns 0 when they have no songs yet. Songs a person
+        # had under two names before those were joined can share numbers (two 1s, two 2s), so
+        # how many songs they have counts too.
         highest_priority = 0
+        song_count = 0
         for song in self.songs:
-            if song.name_id == name_id and song.priority_num > highest_priority:
-                highest_priority = song.priority_num
-        return highest_priority
+            if song.name_id == name_id:
+                song_count += 1
+                highest_priority = max(highest_priority, song.priority_num)
+        return max(highest_priority, song_count)
 
     def find_insert_index(self, priority: int, added_time: float) -> int:
         # Songs line up by when they were added plus a delay that grows with how many songs

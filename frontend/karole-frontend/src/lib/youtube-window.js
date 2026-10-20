@@ -46,3 +46,23 @@ export function videoIdOf(song) {
         return null;
     }
 }
+
+// Points the YouTube window, if one is already open, at what the backend now says is playing.
+// Used after a change made outside the player page (say on the admin Playlist page), so it
+// reaches the window even while the player page is asleep in a background tab. It never opens
+// a window, and does nothing when the extension isn't installed.
+export function steerYouTubeWindow(playback, finished) {
+    const song = finished ? null : playback?.song;
+    const videoId = videoIdOf(song);
+    if (videoId) {
+        sendToExtension({ type: "load", videoId, pId: song.p_id, playing: Boolean(playback.playing), onlyIfOpen: true });
+    } else {
+        sendToExtension({ type: "pause" });
+    }
+}
+
+// Whether the installed extension moves the queue on by itself when a song ends (1.6.0 and later).
+export function extensionAdvancesQueue(version) {
+    const [major, minor] = String(version || "").split(".").map(Number);
+    return major > 1 || (major === 1 && minor >= 6);
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
 import AdminHeader from "../../../components/admin-header";
@@ -9,28 +9,51 @@ import styles from "./page.module.css";
 import { getErrorMessage, statusMessage } from "../../../lib/api-error";
 import { loadCombineQueues, saveCombineQueues } from "../../../lib/merge-queues";
 
+// Names change on the Names page and singers' songs bring new suggestions, so the list
+// refreshes itself this often while the page is in view, and whenever the admin comes back to it.
+const REFRESH_MS = 5000;
+
 export default function AdminOperations() {
     const [operations, setOperations] = useState([]);
     const [status, setStatus] = useState("loading");
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
     const [combineQueues, setCombineQueues] = useState(true);
+    // Counts list requests, so an older answer that arrives after a newer one is ignored.
+    const latestLoad = useRef(0);
 
     async function loadOperations() {
+        const load = ++latestLoad.current;
         try {
             const response = await adminFetch(`${BACKEND_URI}/operation/`, { cache: "no-store" });
             if (!response.ok) throw new Error(statusMessage(response.status));
-            setOperations(await response.json());
+            const result = await response.json();
+            if (load !== latestLoad.current) return;
+            setOperations(result);
             setStatus("ready");
         } catch (requestError) {
+            if (load !== latestLoad.current) return;
             setError(requestError.message);
-            setStatus("error");
+            // A failed refresh keeps showing the list already loaded.
+            setStatus((current) => (current === "ready" ? current : "error"));
         }
     }
 
     useEffect(() => {
         Promise.resolve().then(loadOperations);
         Promise.resolve().then(() => setCombineQueues(loadCombineQueues()));
+
+        function refreshIfVisible() {
+            if (document.visibilityState === "visible") loadOperations();
+        }
+        const timer = window.setInterval(refreshIfVisible, REFRESH_MS);
+        window.addEventListener("focus", refreshIfVisible);
+        document.addEventListener("visibilitychange", refreshIfVisible);
+        return () => {
+            window.clearInterval(timer);
+            window.removeEventListener("focus", refreshIfVisible);
+            document.removeEventListener("visibilitychange", refreshIfVisible);
+        };
     }, []);
 
     function changeCombineQueues(combine) {

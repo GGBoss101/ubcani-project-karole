@@ -39,3 +39,10 @@ for YouTube: open youtube.com, click the permissions icon left of the address, a
 | `youtube-main.js` | Identical. |
 
 When changing a script, make the same change in the Chrome folder.
+
+## Since 1.6.0
+
+The admin Playlist page also steers the YouTube window when you change the song or press
+play/pause there, and the extension moves the queue on by itself when a song ends, so the player
+page can sit frozen in a background tab without holding anything up. See "How it works" in
+`../karole-youtube-extension/README.md`; the two extensions work the same way.

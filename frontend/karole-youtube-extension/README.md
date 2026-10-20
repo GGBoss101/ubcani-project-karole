@@ -93,8 +93,17 @@ copies differ only in using `browser.` where these use `chrome.`, and in loading
 | File | Job |
 | --- | --- |
 | `site-bridge.js` | Runs on the Karole site and passes messages between the player page and the extension. |
-| `background.js` | Opens the YouTube window (one only), points it at each song, and relays commands and status. |
+| `background.js` | Opens the YouTube window (one only), points it at each song, relays commands and status, and moves the queue on when a song ends. |
 | `youtube-player.js` | Runs on youtube.com, but only takes over the window the extension opened: it hides everything but the video, turns off YouTube's "autoplay next", applies play/pause, and reports what's playing. |
 | `youtube-main.js` | Runs inside YouTube's own page so it can use YouTube's player controls (`playVideo`, `pauseVideo`, `seekTo`). Jumping by setting the video's time directly makes YouTube's player stall. |
 
 Ads are left alone: while one plays the player page shows "Ad playing" and waits.
+
+Since 1.6.0 the player page doesn't have to stay awake. Browsers freeze a tab that has sat in
+the background for a while, and the player page used to be the only thing telling the YouTube
+window what to do. Now the admin Playlist page also steers the window when you change the song
+or press play/pause there (it never opens one; that's still the player page's job). When a song
+ends, the extension itself checks the backend still has that song current, moves the queue on and
+loads the next one, through the site's `/backend` pass-through with the admin login of this
+browser. If it can't reach the backend, the player page does it as before. The same song sent
+twice (say by the Playlist page, then by the player page when it wakes up) isn't restarted.

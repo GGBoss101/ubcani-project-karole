@@ -47,10 +47,19 @@ async def add_operation(body: OperationInput) -> OperationEntry:
 
 @router.get("/")
 async def get_opertation() -> list[OperationEntry]:
-    data = await col.find().to_list()
+    # A suggestion only makes sense while both of its names are still main names. Merging,
+    # deleting, promoting or flushing names on the Names page can change that, so suggestions
+    # that went out of date are dropped here, the next time the list is read.
+    main_names = {entry["name"] for entry in await name_col.find({}, {"name": 1}).to_list()}
     operations = []
-    for i in data:
-        operations.append(OperationEntry(**i))
+    stale_ids = []
+    for i in await col.find().to_list():
+        if i["name"] in main_names and i["name_alt"] in main_names:
+            operations.append(OperationEntry(**i))
+        else:
+            stale_ids.append(i["po_id"])
+    if stale_ids:
+        await col.delete_many({"po_id": {"$in": stale_ids}})
     return operations
     
 @router.delete("/flush")
@@ -92,7 +101,12 @@ async def handle_all(combine_queues: bool = True) -> list[NameEntry]:
     operations = await col.find({}, {"po_id": 1}).to_list()
     handled_entries = []
     for operation in operations:
-        handled_entries.append(
-            await handle_case(OperationID(po_id=operation["po_id"]), combine_queues)
-        )
+        # Each one is read again as it is handled, since an earlier match can leave a later
+        # suggestion out of date; one that can no longer be matched is skipped, not fatal.
+        try:
+            handled_entries.append(
+                await handle_case(OperationID(po_id=operation["po_id"]), combine_queues)
+            )
+        except HTTPException:
+            continue
     return handled_entries

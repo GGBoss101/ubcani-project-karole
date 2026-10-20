@@ -1,13 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
 import { getErrorMessage, statusMessage } from "../../../lib/api-error";
 import { loadCombineQueues, saveCombineQueues } from "../../../lib/merge-queues";
 import AdminHeader from "../../../components/admin-header";
+import OverlayScrollbar from "../../../components/overlay-scrollbar";
+import ListResizeHandle from "../../../components/list-resize-handle";
 import shared from "../admin.module.css";
 import styles from "./page.module.css";
+
+// Column widths for the names list, used by both its title row and its rows so they line up.
+function NameColumns() {
+    return (
+        <colgroup>
+            <col className={styles.idColumn} />
+            <col className={styles.nameColumn} />
+            <col />
+            <col className={styles.statusColumn} />
+        </colgroup>
+    );
+}
 
 export default function AdminNames() {
     const [names, setNames] = useState([]);
@@ -19,6 +33,10 @@ export default function AdminNames() {
     const [draggedName, setDraggedName] = useState("");
     const [draggedIsPrimary, setDraggedIsPrimary] = useState(false);
     const [combineQueues, setCombineQueues] = useState(true);
+    const namesBodyRef = useRef(null);
+    // The names list height the admin dragged to, in pixels, until the page reloads. Without one
+    // the list uses its default height from the stylesheet.
+    const [listHeight, setListHeight] = useState(null);
 
     // Names matching the search (the main name or any alternate), alphabetical.
     const query = search.trim().toLowerCase();
@@ -118,8 +136,6 @@ export default function AdminNames() {
         dropAction("delete");
     }
 
-    const selectedEntry = names.find((entry) => entry.name === draggedName);
-
     async function convertToAlternative(targetName) {
         if (!draggedName || !draggedIsPrimary || draggedName === targetName) return;
         await request(`/names/to_alt?combine_queues=${combineQueues}`, {
@@ -167,6 +183,19 @@ export default function AdminNames() {
         event.preventDefault();
     }
 
+    // Dragging a name near the top or bottom of the names list scrolls it, faster the closer
+    // the pointer is to the edge, so rows out of view can still be reached.
+    function scrollWhileDragging(event) {
+        const box = event.currentTarget;
+        const { top, bottom } = box.getBoundingClientRect();
+        const edge = Math.min(64, (bottom - top) / 4);
+        if (event.clientY < top + edge) {
+            box.scrollTop -= Math.ceil(18 * (1 - (event.clientY - top) / edge));
+        } else if (event.clientY > bottom - edge) {
+            box.scrollTop += Math.ceil(18 * (1 - (bottom - event.clientY) / edge));
+        }
+    }
+
     return (
         <main className={shared.page}>
             <AdminHeader />
@@ -210,64 +239,100 @@ export default function AdminNames() {
                     <p className={shared.message}>No names match &quot;{search.trim()}&quot;.</p>
                 )}
                 {status === "ready" && shownNames.length > 0 && (
-                    <div className={shared.tableWrap}>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Name</th>
-                                    <th>Alternate names</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {shownNames.map((entry) => (
-                                        <tr
-                                            key={entry.name_id}
-                                            className={draggedIsPrimary && draggedName !== entry.name ? styles.target : ""}
-                                            onDragOver={allowDrop}
-                                            onDrop={() => convertToAlternative(entry.name)}
-                                            onClick={() => tapRow(entry.name)}
-                                        >
-                                            <td data-label="ID">{entry.name_id}</td>
-                                            <td className={shared.name} data-label="Name">
-                                                <button
-                                                    type="button"
-                                                    className={`${styles.draggableName} ${draggedName === entry.name ? styles.selected : ""}`}
-                                                    aria-pressed={draggedName === entry.name}
-                                                    draggable
-                                                    onClick={(event) => toggleSelect(event, entry.name, true)}
-                                                    onDragStart={() => startDrag(entry.name, true)}
-                                                    onDragEnd={endDrag}
+                    // The column titles are a table of their own above the scrolling rows, so rows never
+                    // slide under them; both tables share the same column widths.
+                    <div className={`${shared.tableWrap} ${styles.namesList}`}>
+                        <div className={styles.namesHead}>
+                            <table>
+                                <NameColumns />
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Alternate names</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </div>
+                        <div className={styles.namesBodyWrap}>
+                            <div
+                                ref={namesBodyRef}
+                                className={styles.namesBody}
+                                // Still capped by the window, so it fits if the window gets smaller.
+                                style={listHeight ? { maxHeight: `min(${listHeight}px, 90vh)` } : undefined}
+                                onDragOver={scrollWhileDragging}
+                            >
+                                <table>
+                                    <NameColumns />
+                                    <tbody>
+                                        {shownNames.map((entry) => (
+                                                <tr
+                                                    key={entry.name_id}
+                                                    className={draggedIsPrimary && draggedName !== entry.name ? styles.target : ""}
+                                                    onDragOver={allowDrop}
+                                                    onDrop={() => convertToAlternative(entry.name)}
+                                                    onClick={() => tapRow(entry.name)}
                                                 >
-                                                    {entry.name}
-                                                </button>
-                                            </td>
-                                            <td className={styles.alternates} data-label="Alternates">
-                                                {entry.name_alt.length > 0 ? entry.name_alt.map((alternate) => (
-                                                    <button
-                                                        type="button"
-                                                        className={`${styles.draggableName} ${draggedName === alternate ? styles.selected : ""}`}
-                                                        aria-pressed={draggedName === alternate}
-                                                        draggable
-                                                        key={alternate}
-                                                        onClick={(event) => toggleSelect(event, alternate, false)}
-                                                        onDragStart={() => startDrag(alternate, false)}
-                                                        onDragEnd={endDrag}
-                                                    >
-                                                        {alternate}
-                                                    </button>
-                                                )) : "-"}
-                                            </td>
-                                            <td data-label="Status">
-                                                <span className={entry.blacklist ? styles.blacklisted : styles.active}>
-                                                    {entry.blacklist ? "Blacklisted" : "Active"}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
+                                                    <td data-label="ID">{entry.name_id}</td>
+                                                    <td className={shared.name} data-label="Name">
+                                                        <button
+                                                            type="button"
+                                                            className={`${styles.draggableName} ${draggedName === entry.name ? styles.selected : ""}`}
+                                                            aria-pressed={draggedName === entry.name}
+                                                            draggable
+                                                            onClick={(event) => toggleSelect(event, entry.name, true)}
+                                                            onDragStart={() => startDrag(entry.name, true)}
+                                                            onDragEnd={endDrag}
+                                                        >
+                                                            {entry.name}
+                                                        </button>
+                                                    </td>
+                                                    <td className={styles.alternates} data-label="Alternates">
+                                                        {entry.name_alt.length > 0 ? entry.name_alt.map((alternate) => (
+                                                            <button
+                                                                type="button"
+                                                                className={`${styles.draggableName} ${draggedName === alternate ? styles.selected : ""}`}
+                                                                aria-pressed={draggedName === alternate}
+                                                                draggable
+                                                                key={alternate}
+                                                                onClick={(event) => toggleSelect(event, alternate, false)}
+                                                                onDragStart={() => startDrag(alternate, false)}
+                                                                onDragEnd={endDrag}
+                                                            >
+                                                                {alternate}
+                                                            </button>
+                                                        )) : "-"}
+                                                    </td>
+                                                    <td data-label="Status">
+                                                        <span className={entry.blacklist ? styles.blacklisted : styles.active}>
+                                                            {entry.blacklist ? "Blacklisted" : "Active"}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <OverlayScrollbar
+                                targetRef={namesBodyRef}
+                                classNames={{
+                                    track: styles.scrollTrack,
+                                    thumb: styles.scrollThumb,
+                                    dragging: styles.scrollDragging,
+                                    scrolling: styles.scrollScrolling,
+                                    shade: styles.scrollShade,
+                                    shadeHidden: styles.scrollShadeHidden,
+                                }}
+                            />
+                        </div>
+                        <ListResizeHandle
+                            targetRef={namesBodyRef}
+                            value={listHeight}
+                            onResize={setListHeight}
+                            onReset={() => setListHeight(null)}
+                            className={styles.resizeHandle}
+                        />
                     </div>
                 )}
 
@@ -285,7 +350,10 @@ export default function AdminNames() {
                     </span>
                 </label>
 
-                <p className={styles.hint}>Drag a name onto an action, or tap a name to choose what to do with it.</p>
+                <p className={styles.hint}>
+                    <span className={styles.dragHint}>Drag a name onto an action, or click a name to choose what to do with it.</span>
+                    <span className={styles.tapHint}>Tap a name to choose what to do with it.</span>
+                </p>
                 <div className={styles.dropZones}>
                     <div className={styles.dropZone} onDragOver={allowDrop} onDrop={() => dropAction("to-name")}>
                         <strong>Alternative to name</strong>
@@ -309,20 +377,36 @@ export default function AdminNames() {
                     <div className={styles.selectionBar} role="region" aria-label="Selected name">
                         <p>
                             <strong>{draggedName}</strong>
-                            {draggedIsPrimary && " · tap another name's row to make it an alternate of that name"}
+                            {draggedIsPrimary && (
+                                <>
+                                    {" · "}
+                                    <span className={styles.pointerWord}>click</span>
+                                    <span className={styles.touchWord}>tap</span>
+                                    {" another name's row to make it an alternate of that name"}
+                                </>
+                            )}
                         </p>
+                        {/* The same four actions as the drop zones, in the same order. One that the
+                            drop zone wouldn't take for this name is shown disabled, with the reason. */}
                         <div className={styles.selectionActions}>
-                            {!draggedIsPrimary && (
-                                <button type="button" onClick={() => dropAction("to-name")}>Make primary</button>
-                            )}
-                            {draggedIsPrimary && !selectedEntry?.blacklist && (
-                                <button type="button" onClick={() => dropAction("blacklist")}>Blacklist</button>
-                            )}
-                            {draggedIsPrimary && selectedEntry?.blacklist && (
-                                <button type="button" onClick={() => dropAction("unblacklist")}>Unblacklist</button>
-                            )}
+                            {[
+                                ["to-name", "Alternative to name", draggedIsPrimary && "Already a main name"],
+                                ["blacklist", "Blacklist", !draggedIsPrimary && "Only main names can be blacklisted"],
+                                ["unblacklist", "Unblacklist", !draggedIsPrimary && "Only main names can be unblacklisted"],
+                            ].map(([action, label, reason]) => (
+                                <button
+                                    type="button"
+                                    key={action}
+                                    disabled={Boolean(reason)}
+                                    title={reason || undefined}
+                                    aria-label={reason ? `${label} (${reason})` : undefined}
+                                    onClick={() => dropAction(action)}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                             <button type="button" className={styles.deleteAction} onClick={confirmDelete}>Delete</button>
-                            <button type="button" onClick={endDrag}>Cancel</button>
+                            <button type="button" className={styles.cancelAction} onClick={endDrag}>Cancel</button>
                         </div>
                     </div>
                 )}

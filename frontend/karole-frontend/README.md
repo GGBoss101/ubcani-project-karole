@@ -57,7 +57,8 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
   for queue order. A mistyped name can be merged into the right one on Admin → Names.
   The "Combine queues when merging names" checkbox appears on both the Names and Operations
   pages and shares one setting (saved per browser, on by default); Match and Match all
-  follow it.
+  follow it. The Operations page refreshes itself every few seconds and drops suggestions whose
+  names were since merged, deleted or flushed; Match all skips any that no longer work.
 - **Queue switch.** The backend stores `{ "open": true|false }` in MongoDB and checks it
   before inserting each song, including after the YouTube lookup finishes. Anyone can read
   the setting; only an authenticated admin can change it. The Add song form also hides while
@@ -81,7 +82,10 @@ The player page (`app/admin/view`) has two modes:
 - **YouTube window** (`view/window-player.js`, `lib/youtube-window.js`), used when the
   "Karole YouTube Controller" browser extension is installed (`../karole-youtube-extension` for Chrome, Edge, Brave..., `../karole-youtube-extension-firefox` for Firefox).
   Songs play in a real YouTube window, so every video works and playback never goes through
-  the backend. The page is the remote. See that folder's README to install it.
+  the backend. The page is the remote. See that folder's README to install it. From extension
+  1.6.0, changes made on the admin Playlist page go straight to the YouTube window and the
+  extension moves the queue on when a song ends, so neither waits for this page, which the
+  browser may have frozen in a background tab.
 - **Built-in player** (`view/stream-player.js`), used otherwise: it plays the backend's stream.
 
 ### The built-in player (`lib/seekable-stream.js`)
@@ -145,6 +149,12 @@ comes back. The previous queue can be brought back from the admin Playlist page.
 
 People can carry on adding songs straight away; new songs line up after the restored ones as
 usual. Restoring is itself logged, so it's safe to restore again later if needed.
+
+Restored songs are matched by name to the current names list (main or alternate names), and a
+restore never changes the names already there. A name that isn't there yet is added just as when
+a singer adds a song, with the usual suggestion on Operations if it is close to an existing one,
+so it's safe to clear the names first. The queue comes back in its saved order; if two of its
+names are one person in the names list now, that person's next new song counts all their songs.
 
 ### How the playlist is stored
 

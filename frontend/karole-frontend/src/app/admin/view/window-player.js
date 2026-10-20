@@ -18,9 +18,11 @@ const DEFAULT_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 // Plays songs in a real YouTube window through the Karole YouTube Controller extension.
 // This page becomes the remote: every control for the screen is here (play/pause, back, skip,
-// jump, volume, speed, captions, full screen, YouTube's own controls), and it moves on to the next song
-// when YouTube reports that one has ended.
-export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBack, onSkip }) {
+// jump, volume, speed, captions, full screen, YouTube's own controls). When a song ends, the
+// extension moves the queue on itself (from 1.6.0, `extensionAdvances`), so that happens even
+// while this page is asleep in a background tab; this page only does it if the extension couldn't
+// reach the backend, or for an older extension.
+export default function WindowPlayer({ song, playing, onEnded, extensionAdvances, onPlayPause, onBack, onSkip }) {
     const [status, setStatus] = useState(null);
     const [seekTo, setSeekTo] = useState(null);
     const [volumeDraft, setVolumeDraft] = useState(null);
@@ -30,13 +32,18 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
     const endedFor = useRef(null);
     const loadedFor = useRef(null);
     const lastCorrection = useRef(0);
+    const mismatchSince = useRef(null);
     const videoId = videoIdOf(song);
+
+    // The newest song the extension couldn't move on from by itself.
+    const [endedUnhandled, setEndedUnhandled] = useState(null);
 
     useEffect(() => listenToExtension((message) => {
         if (message.type === "status") {
             setStatus(message.status);
             setLastHeard(Date.now());
         }
+        if (message.type === "song-ended" && !message.handled) setEndedUnhandled(message.pId);
     }), []);
 
     useEffect(() => {
@@ -57,7 +64,7 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
         // Give the window time to load the song before calling it unresponsive.
         setLastHeard(Date.now());
         lastCorrection.current = Date.now();
-        sendToExtension({ type: "load", videoId, playing });
+        sendToExtension({ type: "load", videoId, pId: song.p_id, playing });
         // `playing` is sent with the song; later changes are handled by the effect below.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [song?.p_id, videoId]);
@@ -69,24 +76,41 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
         sendToExtension({ type: playing ? "play" : "pause" });
     }, [playing, hasSong]);
 
-    // The song finished in the YouTube window (not an ad before it): go to the next one.
+    // The song finished in the YouTube window (not an ad before it): go to the next one, unless
+    // the extension does that itself.
     useEffect(() => {
-        if (!song || !status || status.videoId !== videoId || status.ad) return;
+        if (!song || extensionAdvances || !status || status.videoId !== videoId || status.ad) return;
         if (status.state === "ended" && endedFor.current !== song.p_id) {
             endedFor.current = song.p_id;
             onEnded();
         }
-    }, [status, song, videoId, onEnded]);
+    }, [status, song, videoId, onEnded, extensionAdvances]);
+
+    // The extension couldn't reach the backend to move on from this song: do it from here.
+    useEffect(() => {
+        if (!song || endedUnhandled !== song.p_id || endedFor.current === song.p_id) return;
+        endedFor.current = song.p_id;
+        onEnded();
+    }, [endedUnhandled, song, onEnded]);
 
     // YouTube moved on to some other video by itself (its "autoplay next", or someone clicked a
     // suggestion in the window): put the queue's song back, or stop if there is none.
     useEffect(() => {
-        if (!status?.videoId || status.ad || status.state !== "playing" || status.videoId === videoId) return;
+        if (!status?.videoId || status.ad || status.state !== "playing" || status.videoId === videoId) {
+            mismatchSince.current = null;
+            return;
+        }
         // Right after a song is sent, the window still shows the previous one for a moment.
         if (Date.now() - lastCorrection.current < 8000) return;
+        // Only once it has lasted a few seconds: this page may have just woken up in a background
+        // tab and not yet heard that the extension moved on to the next song, which it hears
+        // within half a second.
+        mismatchSince.current ??= Date.now();
+        if (Date.now() - mismatchSince.current < 3000) return;
+        mismatchSince.current = null;
         lastCorrection.current = Date.now();
         if (song && videoId) {
-            sendToExtension({ type: "load", videoId, playing });
+            sendToExtension({ type: "load", videoId, pId: song.p_id, playing });
         } else {
             sendToExtension({ type: "pause" });
         }
@@ -138,7 +162,8 @@ export default function WindowPlayer({ song, playing, onEnded, onPlayPause, onBa
         loadedFor.current = song.p_id;
         lastCorrection.current = Date.now();
         setLastHeard(Date.now());
-        sendToExtension({ type: "load", videoId, playing });
+        // A deliberate reload, so the window starts the song again even if it already has it.
+        sendToExtension({ type: "load", videoId, pId: song.p_id, playing, force: true });
     }
 
     return (
