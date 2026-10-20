@@ -65,9 +65,9 @@
   min-width: 0;
 }
 
-/* Every card has the same four lines, each cut short with an ellipsis rather than wrapping:
-   the title (with the "Now singing" badge beside it), the song name, the singer and the
-   channel. So all cards are the same height and line up. */
+/* Every card has the same three lines, each cut short with an ellipsis rather than wrapping:
+   the title (with the "Now singing" badge beside it), the song name and the singer. So all
+   cards are the same height and line up. */
 .titleRow {
   display: flex;
   align-items: center;
