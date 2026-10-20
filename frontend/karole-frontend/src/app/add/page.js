@@ -288,6 +288,7 @@ export default function AddSong() {
                                     position={index + 1}
                                     nowPlaying={song.p_id === currentId}
                                     compact
+                                    wideNumber={upNext.length >= 100}
                                 />
                             ))}
                         </ol>

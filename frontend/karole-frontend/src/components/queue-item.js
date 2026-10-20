@@ -3,8 +3,15 @@ import styles from "./queue-item.module.css";
 
 // One song in the live queue. "compact" drops the singer for small previews,
 // "nowPlaying" spotlights the song being sung, and "played" fades out songs already sung.
-export default function QueueItem({ song, position, compact = false, nowPlaying = false, played = false }) {
-    const classNames = [styles.item, compact && styles.compact, nowPlaying && styles.nowPlaying, played && styles.played];
+// "wideNumber" makes room for a three-digit position; a list sets it on all its cards at once.
+export default function QueueItem({ song, position, compact = false, nowPlaying = false, played = false, wideNumber = false }) {
+    const classNames = [
+        styles.item,
+        compact && styles.compact,
+        nowPlaying && styles.nowPlaying,
+        played && styles.played,
+        wideNumber && styles.wideNumber,
+    ];
     return (
         <li className={classNames.filter(Boolean).join(" ")}>
             <span className={styles.position}>{String(position).padStart(2, "0")}</span>

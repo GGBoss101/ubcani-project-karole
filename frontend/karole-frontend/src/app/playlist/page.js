@@ -51,6 +51,7 @@ export default function Playlist() {
                                 position={index + 1}
                                 nowPlaying={song.p_id === currentId}
                                 played={index < playedCount}
+                                wideNumber={songs.length >= 100}
                             />
                         ))}
                     </ol>
