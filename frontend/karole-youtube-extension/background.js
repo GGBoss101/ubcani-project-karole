@@ -30,10 +30,13 @@ async function getYouTubeTab() {
     return adopted;
 }
 
-function watchUrl(videoId, start) {
+// `paused` adds karole=paused, which makes the window hold the song at the start, silent, until
+// Play is pressed on the site (see youtube-main.js). YouTube ignores the extra parameter.
+function watchUrl(videoId, start, paused = false) {
     const url = new URL("https://www.youtube.com/watch");
     url.searchParams.set("v", videoId);
     if (start > 0) url.searchParams.set("t", `${Math.floor(start)}s`);
+    if (paused) url.searchParams.set("karole", "paused");
     return url.href;
 }
 
@@ -94,7 +97,7 @@ async function loadVideo(videoId, playing, start, { pId = null, onlyIfOpen = fal
         needsFreshPage: false,
         endedPId: null,
     });
-    const url = watchUrl(videoId, start);
+    const url = watchUrl(videoId, start, !playing);
     const tab = await getYouTubeTab();
     if (tab) {
         await chrome.tabs.update(tab.id, { url });
@@ -122,6 +125,7 @@ async function advanceAfter(pId) {
         const current = await fromBackend("/playlist/current-play");
         // Someone already moved on (say skip was pressed in the song's last second).
         if (current.song?.p_id !== pId) return true;
+        // With "Start each song paused" on, the backend answers with the next song paused.
         const next = await fromBackend("/playlist/skip", { method: "POST" });
         const finished = await fromBackend("/playlist/queue-finished");
         const videoId = next.song?.url_id;

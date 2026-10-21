@@ -9,6 +9,7 @@ const FRIENDLY_DETAILS = {
     "This name is blacklisted": "This name can't add songs. Please talk to the host.",
     "Song was removed for being too long": "That song was removed for being too long, so it can't be added again.",
     "Queue is closed": "The queue just closed, so no more songs can be added right now.",
+    "Video is age-restricted": "That video is age-restricted on YouTube, so it can't be added. Try another upload of the same song.",
 };
 
 // One FastAPI validation error (status 422), e.g. a name with characters it doesn't allow.

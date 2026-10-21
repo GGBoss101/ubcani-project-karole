@@ -7,6 +7,7 @@ import { statusMessage } from "../../../lib/api-error";
 import { fetchQueueFinished } from "../../../lib/use-playlist";
 import { detectExtension, extensionAdvancesQueue } from "../../../lib/youtube-window";
 import { startTicker } from "../../../lib/background-ticker";
+import { useQueueSettings } from "../../../lib/use-queue-settings";
 import StreamPlayer from "./stream-player";
 import WindowPlayer from "./window-player";
 import styles from "./page.module.css";
@@ -104,6 +105,15 @@ export default function AdminView() {
     }, []);
 
     const skip = useCallback(() => control("skip"), [control]);
+    const queue = useQueueSettings();
+
+    async function togglePauseBeforeSongs() {
+        try {
+            await queue.setPauseBeforeSongs(!queue.pause_before_songs);
+        } catch (requestError) {
+            setError(requestError.message);
+        }
+    }
     const song = playback.song;
 
     // With the extension, this page is the remote and all its controls live in one panel.
@@ -115,6 +125,9 @@ export default function AdminView() {
                     playing={playback.playing}
                     onEnded={skip}
                     extensionAdvances={extensionAdvancesQueue(extensionVersion)}
+                    pauseBeforeSongs={queue.pause_before_songs}
+                    settingsLoaded={queue.loaded}
+                    onTogglePauseBeforeSongs={togglePauseBeforeSongs}
                     onPlayPause={() => control("play_pause")}
                     onBack={() => control("back")}
                     onSkip={skip}

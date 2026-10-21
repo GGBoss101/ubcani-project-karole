@@ -107,3 +107,10 @@ ends, the extension itself checks the backend still has that song current, moves
 loads the next one, through the site's `/backend` pass-through with the admin login of this
 browser. If it can't reach the backend, the player page does it as before. The same song sent
 twice (say by the Playlist page, then by the player page when it wakes up) isn't restarted.
+
+Since 1.6.2, a song that should start paused ("Start each song paused" on the Playlist or View
+page) opens with `karole=paused` in its address. `youtube-main.js` reads it before YouTube's player
+loads and stops the video the instant it starts (muted until stopped, so nothing is heard), until
+Play is pressed on the site. Ads are left to play; the song after them is held the same way.
+Since 1.6.3 the held song isn't allowed to start at all (its `play()` is refused like a blocked
+autoplay), so it sits at 0:00 with no sound or movement; the instant stop above is kept as a backup.

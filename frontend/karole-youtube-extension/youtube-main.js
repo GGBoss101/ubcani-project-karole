@@ -9,6 +9,56 @@
 let reporting = false;
 const player = () => document.getElementById("movie_player");
 
+// A song the Karole window should open paused ("Start each song paused") has karole=paused in its
+// address, read here before YouTube's player even exists. Until a real Play arrives from the
+// site, the song's video isn't allowed to start at all: its play() is refused the way a browser
+// refuses autoplay, which YouTube already handles by sitting at 0:00, paused and silent. Ads are
+// left to play; the song after them is held the same way. Other YouTube tabs never have the marker.
+let hold = false;
+let holdVideoId = null; // the video the hold was read for
+
+const urlVideoId = () => new URLSearchParams(window.location.search).get("v");
+
+function readHold() {
+    holdVideoId = urlVideoId();
+    hold = new URLSearchParams(window.location.search).get("karole") === "paused";
+}
+readHold();
+// YouTube can change pages without reloading. Only a different video changes the hold, so YouTube
+// tidying the address (and dropping karole=paused) can't release it early.
+window.addEventListener("yt-navigate-finish", () => {
+    if (urlVideoId() !== holdVideoId) readHold();
+});
+
+// Only the song itself is held: anything that might be an ad, or can't be told apart yet, plays.
+function isHeldSong(video) {
+    if (!hold || !(video instanceof HTMLVideoElement)) return false;
+    const element = player();
+    if (!element || element.classList.contains("ad-showing") || element.classList.contains("ad-interrupting")) return false;
+    const playingId = element.getVideoData?.()?.video_id;
+    return Boolean(playingId) && playingId === urlVideoId();
+}
+
+const nativePlay = HTMLMediaElement.prototype.play;
+HTMLMediaElement.prototype.play = function play(...args) {
+    if (isHeldSong(this)) return Promise.reject(new DOMException("Held by Karole until Play", "NotAllowedError"));
+    return nativePlay.apply(this, args);
+};
+
+// Backup, should a start get past the above: stop the video the instant it starts, in the capture
+// phase of its "play" event, muted until that pause has taken effect.
+document.addEventListener("play", (event) => {
+    const video = event.target;
+    if (!isHeldSong(video)) return;
+    const wasMuted = video.muted;
+    video.muted = true;
+    video.pause();
+    player()?.pauseVideo?.();
+    video.addEventListener("pause", () => {
+        video.muted = wasMuted;
+    }, { once: true });
+}, true);
+
 function shownCaption(element) {
     try {
         const track = element.getOption("captions", "track");
@@ -93,6 +143,8 @@ function report() {
 window.addEventListener("message", (event) => {
     if (event.source !== window || event.data?.source !== "karole-control") return;
     const { command, time } = event.data;
+    // A real Play from the site ends the hold for this song.
+    if (command === "play") hold = false;
     if (command === "start" && !reporting) {
         reporting = true;
         window.setInterval(report, 500);

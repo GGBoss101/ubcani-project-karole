@@ -46,3 +46,6 @@ The admin Playlist page also steers the YouTube window when you change the song 
 play/pause there, and the extension moves the queue on by itself when a song ends, so the player
 page can sit frozen in a background tab without holding anything up. See "How it works" in
 `../karole-youtube-extension/README.md`; the two extensions work the same way.
+
+Since 1.6.2, songs that should start paused open already stopped and silent; see the same README.
+Since 1.6.3 such a song isn't allowed to start at all, so it sits at 0:00 with no sound or movement.

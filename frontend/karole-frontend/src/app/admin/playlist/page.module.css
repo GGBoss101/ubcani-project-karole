@@ -89,6 +89,28 @@
   transform: translateX(18px);
 }
 
+/* A switch whose "off" is the usual state, so off is shown in plain grey rather than red. */
+.switchPlain:not(.switchOn) {
+  border-color: var(--line-strong);
+  color: var(--text-soft);
+}
+
+.switchPlain:not(.switchOn) .switchTrack {
+  background: var(--line-strong);
+}
+
+.switchText {
+  display: grid;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.switchText small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .controls {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

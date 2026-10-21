@@ -166,9 +166,28 @@ queue_settings_col = client["queue_settings"]
 queue_settings_lock = asyncio.Lock()
 
 
+async def read_queue_settings() -> dict[str, bool]:
+    # open: whether new songs are taken. pause_before_songs: whether each song that becomes the
+    # current one (it came next, or Skip, Back, a jump or a delete moved to it) waits for Play.
+    settings = await queue_settings_col.find_one({"_id": "queue"}) or {}
+    return {"open": settings.get("open", True) is True, "pause_before_songs": settings.get("pause_before_songs") is True}
+
+
+def current_p_id() -> int | None:
+    return playlist_store.current_song.p_id if playlist_store.current_song else None
+
+
+def hold_new_song(before_p_id: int | None, pause_before_songs: bool) -> None:
+    # Called straight after a change of song, with no await in between, so nothing ever sees the
+    # new song playing when it should be waiting.
+    song = playlist_store.current_song
+    if pause_before_songs and song is not None and song.p_id != before_p_id and playlist_store.playing:
+        playlist_store.playing = False
+        playlist_store.renumber_and_log()
+
+
 async def is_queue_open() -> bool:
-    settings = await queue_settings_col.find_one({"_id": "queue"})
-    return settings is None or settings.get("open") is True
+    return (await read_queue_settings())["open"]
 
 @router.get("/search")
 async def search(q: str = Query(min_length=1, max_length=100)) -> list[dict]:
@@ -189,7 +208,13 @@ async def add_song(body: PlaylistInput):
     if await blocked_col.find_one({"service": body.service, "url_id": body.url_id}):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Song was removed for being too long")
 
-    video_info = await asyncio.to_thread(extract_video_info, body.url)
+    try:
+        video_info = await asyncio.to_thread(extract_video_info, body.url)
+    except DownloadError as error:
+        # Age-restricted videos need a signed-in, age-verified YouTube account, which the server doesn't use.
+        if "confirm your age" in str(error):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Video is age-restricted") from error
+        raise
     channel_icon_url = await asyncio.to_thread(
         extract_channel_icon_url,
         video_info.get("channel_url") or video_info.get("uploader_url"),
@@ -225,17 +250,15 @@ async def add_song(body: PlaylistInput):
 
 @router.get("/queue-settings")
 async def get_queue_settings() -> dict[str, bool]:
-    return {"open": await is_queue_open()}
+    return await read_queue_settings()
 
 @router.post("/queue-settings", dependencies=[Depends(require_admin)])
 async def set_queue_settings(body: QueueSettingsInput) -> dict[str, bool]:
+    changes = body.model_dump(exclude_none=True)
     async with queue_settings_lock:
-        await queue_settings_col.update_one(
-            {"_id": "queue"},
-            {"$set": {"open": body.open}},
-            upsert=True,
-        )
-    return {"open": body.open}
+        if changes:
+            await queue_settings_col.update_one({"_id": "queue"}, {"$set": changes}, upsert=True)
+        return await read_queue_settings()
 
 @router.get("/")
 async def get_playlist() -> list[PlaylistEntry]:
@@ -321,12 +344,18 @@ async def play_pause() -> bool:
 
 @router.post("/skip", dependencies=[Depends(require_admin)])
 async def skip():
+    pause_before_songs = (await read_queue_settings())["pause_before_songs"]
+    before = current_p_id()
     playlist_store.skip()
+    hold_new_song(before, pause_before_songs)
     return playlist_store.playback_state()
 
 @router.post("/back", dependencies=[Depends(require_admin)])
 async def back():
+    pause_before_songs = (await read_queue_settings())["pause_before_songs"]
+    before = current_p_id()
     playlist_store.back()
+    hold_new_song(before, pause_before_songs)
     return playlist_store.playback_state()
 
 @router.post("/jump", dependencies=[Depends(require_admin)])
@@ -336,7 +365,10 @@ async def jump(body: PlaylistJump):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Playlist entry not found",
         )
+    pause_before_songs = (await read_queue_settings())["pause_before_songs"]
+    before = current_p_id()
     playlist_store.jump(body.order_num)
+    hold_new_song(before, pause_before_songs)
     return playlist_store.playback_state()
 
 @router.delete("/flush", dependencies=[Depends(require_admin)])
@@ -346,7 +378,10 @@ async def flush_playlist() -> dict[str, str]:
 
 @router.delete("/delete", dependencies=[Depends(require_admin)])
 async def delete(playlist_id: int) -> PlaylistEntry:
+    pause_before_songs = (await read_queue_settings())["pause_before_songs"]
+    before = current_p_id()
     song = playlist_store.delete_song(playlist_id)
+    hold_new_song(before, pause_before_songs)
     if song is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -357,7 +392,10 @@ async def delete(playlist_id: int) -> PlaylistEntry:
 @router.delete("/delete_too_long", dependencies=[Depends(require_admin)])
 async def delete_too_long(playlist_id: int) -> PlaylistEntry:
     # Like /delete, but the song is also blocked from being added again (see blocked_col).
+    pause_before_songs = (await read_queue_settings())["pause_before_songs"]
+    before = current_p_id()
     song = playlist_store.delete_song(playlist_id)
+    hold_new_song(before, pause_before_songs)
     if song is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

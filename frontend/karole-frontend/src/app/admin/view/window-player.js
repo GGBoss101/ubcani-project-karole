@@ -22,7 +22,18 @@ const DEFAULT_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 // extension moves the queue on itself (from 1.6.0, `extensionAdvances`), so that happens even
 // while this page is asleep in a background tab; this page only does it if the extension couldn't
 // reach the backend, or for an older extension.
-export default function WindowPlayer({ song, playing, onEnded, extensionAdvances, onPlayPause, onBack, onSkip }) {
+export default function WindowPlayer({
+    song,
+    playing,
+    onEnded,
+    extensionAdvances,
+    pauseBeforeSongs,
+    settingsLoaded,
+    onTogglePauseBeforeSongs,
+    onPlayPause,
+    onBack,
+    onSkip,
+}) {
     const [status, setStatus] = useState(null);
     const [seekTo, setSeekTo] = useState(null);
     const [volumeDraft, setVolumeDraft] = useState(null);
@@ -304,6 +315,23 @@ export default function WindowPlayer({ song, playing, onEnded, extensionAdvances
                         ))}
                     </select>
                 </label>
+
+                <div className={styles.setting}>
+                    <span className={styles.settingLabel}>Queue</span>
+                    <div className={styles.settingRow}>
+                        <button
+                            type="button"
+                            role="switch"
+                            className={`${styles.iconButton} ${pauseBeforeSongs ? styles.toggleOn : ""}`}
+                            onClick={onTogglePauseBeforeSongs}
+                            aria-checked={Boolean(pauseBeforeSongs)}
+                            disabled={!settingsLoaded}
+                        >
+                            Start each song paused: {pauseBeforeSongs ? "on" : "off"}
+                        </button>
+                        <span className={styles.settingHint}>New songs wait at the start until you press Play</span>
+                    </div>
+                </div>
 
                 <div className={styles.setting}>
                     <span className={styles.settingLabel}>Screen</span>

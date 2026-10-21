@@ -59,6 +59,10 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
   pages and shares one setting (saved per browser, on by default); Match and Match all
   follow it. The Operations page refreshes itself every few seconds and drops suggestions whose
   names were since merged, deleted or flushed; Match all skips any that no longer work.
+- **Start each song paused.** A switch on the admin Playlist and View pages, stored with the
+  queue switch. When on, every song that becomes the current one (the last one ended, or Skip,
+  Back, a jump or deleting the playing song moved to it) waits at the start until Play is pressed.
+  The YouTube window opens it already stopped, so no sound plays (extension 1.6.2).
 - **Song names** may use any letters, numbers, punctuation and symbols, up to 70 characters
   (no line breaks). People's names stay letters, numbers, spaces and `_`.
 - **Queue switch.** The backend stores `{ "open": true|false }` in MongoDB and checks it

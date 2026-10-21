@@ -121,4 +121,6 @@ class PlaylistJump(BaseModel):
     order_num: int
 
 class QueueSettingsInput(BaseModel):
-    open: bool
+    # Either or both; a setting left out keeps its value.
+    open: bool | None = None
+    pause_before_songs: bool | None = None

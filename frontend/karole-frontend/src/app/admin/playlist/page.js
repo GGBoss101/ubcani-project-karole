@@ -266,6 +266,15 @@ export default function AdminPlaylist() {
         }
     }
 
+    async function togglePauseBeforeSongs() {
+        setError("");
+        try {
+            await queue.setPauseBeforeSongs(!queue.pause_before_songs);
+        } catch (requestError) {
+            setError(requestError.message);
+        }
+    }
+
     // Time left counts the song playing now and everything after it.
     const currentIndex = songs.findIndex((song) => song.p_id === playback.song?.p_id);
     const remaining = currentIndex >= 0 ? songs.slice(currentIndex + (finished ? 1 : 0)) : songs;
@@ -315,6 +324,22 @@ export default function AdminPlaylist() {
                             <span className={styles.switchThumb} />
                         </span>
                         {queue.open ? "Taking songs" : "Queue closed"}
+                    </button>
+                    <button
+                        className={`${styles.switch} ${styles.switchPlain} ${queue.pause_before_songs ? styles.switchOn : ""}`}
+                        type="button"
+                        role="switch"
+                        aria-checked={queue.pause_before_songs}
+                        onClick={togglePauseBeforeSongs}
+                        disabled={hydrated ? !queue.loaded : undefined}
+                    >
+                        <span className={styles.switchTrack} aria-hidden="true">
+                            <span className={styles.switchThumb} />
+                        </span>
+                        <span className={styles.switchText}>
+                            Start each song paused
+                            <small>New songs wait at the start until you press Play</small>
+                        </span>
                     </button>
                 </div>
 

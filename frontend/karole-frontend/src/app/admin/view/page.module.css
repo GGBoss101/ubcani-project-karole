@@ -397,6 +397,11 @@
   color: var(--aqua);
 }
 
+.settingHint {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
 @media (max-width: 560px) {
   .setting {
     grid-template-columns: 1fr;
