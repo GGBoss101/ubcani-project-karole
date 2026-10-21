@@ -59,6 +59,8 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
   pages and shares one setting (saved per browser, on by default); Match and Match all
   follow it. The Operations page refreshes itself every few seconds and drops suggestions whose
   names were since merged, deleted or flushed; Match all skips any that no longer work.
+- **Song names** may use any letters, numbers, punctuation and symbols, up to 70 characters
+  (no line breaks). People's names stay letters, numbers, spaces and `_`.
 - **Queue switch.** The backend stores `{ "open": true|false }` in MongoDB and checks it
   before inserting each song, including after the YouTube lookup finishes. Anyone can read
   the setting; only an authenticated admin can change it. The Add song form also hides while

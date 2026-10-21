@@ -13,7 +13,8 @@ if (max_length_name != None):
 else:
     max_length_name = 30
 
-# Song names can be longer than people's names.
+# Song names can be longer than people's names, and may use any letters, numbers, punctuation and
+# symbols (titles are often in other languages or full of punctuation), but not line breaks.
 max_length_song_name = 70
 
 # Group 1 is the 11 character video id. The final optional group allows extra
@@ -59,7 +60,7 @@ class OperationEntry(BaseModel):
 class PlaylistInput(BaseModel):
     url: str = Field(max_length=100)
     name: str = Field(pattern=r"^[\p{L}0-9_\s]+$")
-    song_name: str = Field(max_length=max_length_song_name, pattern=r"^[\p{L}0-9_\s*@#\^\&\%]+$")
+    song_name: str = Field(max_length=max_length_song_name, pattern=r"^[\p{L}\p{M}\p{N}\p{P}\p{S}\p{Zs}]+$")
     url_id: str | None = None
     service: str | None = None
     
@@ -86,7 +87,7 @@ class PlaylistEntry(BaseModel):
     name_id: int
     time: float
     name: str = Field(pattern=r"^[\p{L}0-9_\s]+$")
-    song_name: str = Field(max_length=max_length_song_name, pattern=r"^[\p{L}0-9_\s*@#\^\&\%]+$")
+    song_name: str = Field(max_length=max_length_song_name, pattern=r"^[\p{L}\p{M}\p{N}\p{P}\p{S}\p{Zs}]+$")
     service: str | None = None
     url: str = Field(max_length=100)
     url_id: str | None = None

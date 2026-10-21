@@ -18,7 +18,7 @@ function describeValidationError(error) {
         return `${field} can only use letters, numbers, spaces and _ (no punctuation or emoji).`;
     }
     if (error.type === "string_pattern_mismatch" && field === FIELD_LABELS.song_name) {
-        return `${field} can only use letters, numbers, spaces and _ * @ # ^ & % (no other punctuation).`;
+        return `${field} can't contain line breaks or invisible characters.`;
     }
     if (error.type === "string_too_long") {
         return `${field} is too long (${error.ctx?.max_length ?? 30} characters at most).`;
