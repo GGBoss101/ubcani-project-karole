@@ -10,7 +10,12 @@ window.addEventListener("message", (event) => {
     if (event.source !== window || event.data?.source !== "karole-page") return;
     const message = event.data.message || {};
     if (message.type === "ping") {
-        toPage({ type: "installed", version: chrome.runtime.getManifest().version });
+        // With this browser's device ID, for the "main screen" (see background.js getDeviceId).
+        const version = chrome.runtime.getManifest().version;
+        chrome.runtime
+            .sendMessage({ from: "site", type: "device-id" })
+            .then((reply) => toPage({ type: "installed", version, deviceId: reply?.deviceId || null }))
+            .catch(() => toPage({ type: "installed", version, deviceId: null }));
         return;
     }
     chrome.runtime

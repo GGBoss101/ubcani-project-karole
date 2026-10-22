@@ -21,13 +21,19 @@ export function sendToExtension(message) {
 }
 
 // Resolves with the extension's version, or null when it isn't installed on this browser.
-export function detectExtension(timeoutMs = 800) {
+export async function detectExtension(timeoutMs = 800) {
+    return (await detectExtensionInfo(timeoutMs))?.version ?? null;
+}
+
+// Resolves with { version, deviceId } from the extension (deviceId from 1.8.0, for the main
+// screen), or null when it isn't installed on this browser.
+export function detectExtensionInfo(timeoutMs = 800) {
     return new Promise((resolve) => {
         const stop = listenToExtension((message) => {
             if (message.type !== "installed") return;
             clearTimeout(timer);
             stop();
-            resolve(message.version || "unknown");
+            resolve({ version: message.version || "unknown", deviceId: message.deviceId || null });
         });
         const timer = setTimeout(() => {
             stop();

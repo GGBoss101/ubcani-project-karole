@@ -137,6 +137,13 @@
   background: var(--periwinkle);
 }
 
+/* Which device plays the video, beside the numbers. */
+.screenNote {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 /* The queue's switches, between the playback card and the warnings. */
 .settingsCard {
   margin-bottom: 1.25rem;

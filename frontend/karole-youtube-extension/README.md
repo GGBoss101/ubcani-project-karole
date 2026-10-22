@@ -76,8 +76,8 @@ YouTube in it. Every song then starts playing with sound the moment the window o
 on a Mac, run `defaults delete com.google.Chrome AutoplayAllowlist` and restart Chrome; on
 Windows, delete the registry key.
 
-Without the extension, the player page falls back to the built-in player (the backend's video
-stream), exactly as before.
+Without the extension, the player page is a remote (controls only, no video), unless that device
+is made the main screen: then it plays the video in the built-in player (the backend's stream).
 
 ## Putting the site online
 
@@ -141,3 +141,10 @@ timer slowed by the browser to as little as once a minute, which made the player
 disconnected; being asked works anyway. Updating or reloading the extension still cuts off the open
 pages: the player page then says "The extension was updated", and reloading it and reopening the
 YouTube window fixes it.
+
+Since 1.8.0 only the **main screen** plays (see "The main screen" in the site's README). The
+extension gives its browser an ID (kept in the extension's local storage, the same at every address
+of the site), the player page uses it to claim the main screen, and every second while its YouTube
+window is open the extension checks that it still is: if another device has taken over, it closes
+its window, even with no Karole page open. The first player page with the extension claims the main
+screen by itself while no device has it.

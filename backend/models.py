@@ -144,6 +144,12 @@ class PlaylistPosition(BaseModel):
     p_id: int
     position: float = Field(ge=0)
 
+# The device that plays the video (the "main screen"): a random ID its browser made up, and a
+# short label to show admins which one it is, e.g. "Chrome on macOS".
+class ScreenInput(BaseModel):
+    device_id: str = Field(pattern=r"^[A-Za-z0-9-]{8,64}$")
+    label: str = Field(default="", max_length=60)
+
 class QueueSettingsInput(BaseModel):
     # Either or both; a setting left out keeps its value.
     open: bool | None = None

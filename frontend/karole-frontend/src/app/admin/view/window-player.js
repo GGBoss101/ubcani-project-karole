@@ -39,6 +39,7 @@ export default function WindowPlayer({
     onPlayPause,
     onBack,
     onSkip,
+    onVideoError,
 }) {
     const [status, setStatus] = useState(null);
     const [seekTo, setSeekTo] = useState(null);
@@ -159,6 +160,13 @@ export default function WindowPlayer({
     // A song is up but the window has gone quiet: it was closed, or it's left over from before
     // the extension was reloaded and no longer listens.
     const silent = Boolean(song) && state !== "closed" && now - lastHeard > 8000;
+    // YouTube can't play this song in the window (removed, blocked...): the page plays it in the
+    // built-in player instead, for this song only (see page.js).
+    const songId = song?.p_id;
+    useEffect(() => {
+        if (state === "error" && songId != null) onVideoError?.(songId);
+    }, [state, songId, onVideoError]);
+
     // Whether the silence is because the extension was updated or reloaded: this page's link to
     // it then stops answering too, until the page is reloaded.
     const [bridgeGone, setBridgeGone] = useState(false);

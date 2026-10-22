@@ -74,11 +74,24 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
 - **Queue settings card.** "Taking songs", "Start each song paused" and "Auto-play after a delay"
   (with its seconds) are one card (`components/queue-settings-card.js`), the same on the admin
   Playlist page and the phone remote.
-- **Controlling from a phone or tablet.** The admin Playlist page works fully on a phone. Admin →
-  View on a phone or tablet opens as a **remote**: the song on now, Back / Play / Skip and the queue
-  settings, with no video (it plays on the laptop's screen) and no skipping of its own. "Play video on
-  this device" switches to the built-in player instead; on a laptop without the extension, "Use as
-  remote" does the reverse. Presses from a phone reach the YouTube window within a second or two,
+- **The main screen.** One device plays the video: the **main screen**. Every other device's
+  Admin → View is a **remote** (the song on now, Back / Play / Skip and the queue settings, no video
+  and no skipping of its own), even a laptop with the extension, so the song never plays in two
+  places. The backend remembers which device it is (each browser has its own ID), across restarts.
+  - **Setting it up:** on the laptop for the TV, with the extension, open Admin → View. If no device
+    is the main screen yet, it becomes it by itself. Otherwise press **Make this the main screen**
+    at the bottom of the remote and confirm.
+  - **Moving it:** press **Make this the main screen** on another device. The old one stops within a
+    few seconds: its YouTube window closes (the extension does this even with View closed) or its
+    built-in player stops, and it becomes a remote.
+  - **Without the extension,** the main screen uses the built-in player on that device.
+  - **If the YouTube window can't play a song** (YouTube shows an error), the main screen plays that
+    song in the built-in player instead, then goes back to the YouTube window for the next song.
+    It helps when the window itself fails; a video YouTube blocks outright usually fails there too,
+    so skip it.
+  - The admin Playlist page shows which device is the main screen.
+  - Phones and tablets show the remote straight away; a computer shows "Loading…" for up to 0.8 s
+    while it checks for the extension. Presses from a phone reach the YouTube window within a second or two,
   even with no Karole page awake on the laptop, because extension 1.7.2 checks the backend itself.
   Volume, speed, captions and full screen stay on the laptop's View page.
 - **Keeping View connected.** View asks the YouTube window for its state every 2 seconds (extension
@@ -137,7 +150,9 @@ The player page (`app/admin/view`) has two modes:
   1.6.0, changes made on the admin Playlist page go straight to the YouTube window and the
   extension moves the queue on when a song ends, so neither waits for this page, which the
   browser may have frozen in a background tab.
-- **Built-in player** (`view/stream-player.js`), used otherwise: it plays the backend's stream.
+- **Remote** (`view/remote-player.js`), used otherwise: controls only, no video.
+- **Built-in player** (`view/stream-player.js`), chosen from the remote with "Play video on this
+  device": it plays the backend's stream.
 
 ### The built-in player (`lib/seekable-stream.js`)
 

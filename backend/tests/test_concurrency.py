@@ -236,7 +236,55 @@ async def main_test() -> None:
 
     await position_test()
     await login_cookie_test()
+    await main_screen_test()
     print("\nAll checks passed. Temporary logs were written to", LOG_DIR)
+
+
+class FakeSettingsCollection:
+    # Stands in for MongoDB's queue_settings collection: one document, kept in memory.
+    def __init__(self):
+        self.document = {}
+
+    async def find_one(self, query):
+        return dict(self.document) if self.document else None
+
+    async def update_one(self, query, update, upsert=False):
+        self.document.update(update["$set"])
+
+
+async def main_screen_test() -> None:
+    real_collection = routes.queue_settings_col
+    routes.queue_settings_col = FakeSettingsCollection()
+    try:
+        print("The main screen")
+        fresh_queue()
+        transport = httpx.ASGITransport(app=main.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            answer = await client.get("/playlist/screen")
+            check(answer.status_code == 200 and answer.json()["device_id"] is None, "no main screen at first")
+            laptop = {"device_id": "laptop-0001-aaaa", "label": "Chrome on Mac"}
+            phone = {"device_id": "phone-0002-bbbb", "label": "Safari on iPhone"}
+            answer = await client.post("/playlist/screen?only_if_unset=true", json=laptop)
+            check(answer.json()["device_id"] == laptop["device_id"], "the first device with the extension claims it by itself")
+            answer = await client.post("/playlist/screen?only_if_unset=true", json=phone)
+            check(answer.json()["device_id"] == laptop["device_id"], "a claim by itself can't take it from another device")
+            answers = await burst(client, [("POST", "/playlist/screen?only_if_unset=true", {"json": phone})] * 5)
+            check(all(each.json()["device_id"] == laptop["device_id"] for each in answers), "nor can several at once")
+            answer = await client.post("/playlist/screen", json=phone)
+            check(answer.json()["device_id"] == phone["device_id"] and answer.json()["label"] == "Safari on iPhone",
+                  "pressing the button moves it to that device")
+            answer = await client.post("/playlist/screen", json={"device_id": "bad id!", "label": ""})
+            check(answer.status_code == 422, "a malformed device ID is refused")
+            progress = (await client.get("/playlist/progress")).json()
+            check("device_id" not in progress and "label" not in progress, "the public progress route doesn't show it")
+            main.app.dependency_overrides.pop(require_admin)
+            try:
+                check((await client.get("/playlist/screen")).status_code == 401, "reading it needs the admin login")
+                check((await client.post("/playlist/screen", json=laptop)).status_code == 401, "so does claiming it")
+            finally:
+                main.app.dependency_overrides[require_admin] = lambda: {"admin": True}
+    finally:
+        routes.queue_settings_col = real_collection
 
 
 async def login_cookie_test() -> None:

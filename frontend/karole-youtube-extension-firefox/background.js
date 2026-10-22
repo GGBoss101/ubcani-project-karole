@@ -177,6 +177,17 @@ async function advanceAfter(pId) {
     }
 }
 
+// This browser's own ID, made up once and kept, so the site can tell which device is the "main
+// screen" (the one that plays the video; see the player page). Kept by the extension rather than
+// a page, so it's the same whichever address the site is opened at.
+async function getDeviceId() {
+    const { deviceId } = await browser.storage.local.get("deviceId");
+    if (deviceId) return deviceId;
+    const newId = crypto.randomUUID();
+    await browser.storage.local.set({ deviceId: newId });
+    return newId;
+}
+
 // Keeps the window in step with the backend by itself, so Play, Pause, Skip, Back or a jump pressed
 // anywhere (on a phone, say, where there's no extension) reaches it within a second or two, even
 // with no Karole page awake on this computer. Runs on the window's status reports, which come at
@@ -193,6 +204,17 @@ async function syncFromBackend() {
     let current;
     let finished;
     try {
+        // Only the main screen plays. If another device has taken over, this window closes, even
+        // with no Karole page open here, so the song never plays in two places.
+        const screen = await fromBackend("/playlist/screen");
+        if (screen.device_id && screen.device_id !== (await getDeviceId())) {
+            const tab = await getYouTubeTab();
+            if (tab) {
+                console.log("Karole: another device is the main screen now, closing this YouTube window");
+                await browser.windows.remove(tab.windowId).catch(() => {});
+            }
+            return;
+        }
         current = await fromBackend("/playlist/current-play");
         finished = await fromBackend("/playlist/queue-finished");
     } catch {
@@ -285,6 +307,8 @@ async function fromSite(message, tab, senderUrl) {
             if (youtubeTab) await browser.windows.remove(youtubeTab.windowId);
             return { ok: true };
         }
+        case "device-id":
+            return { ok: true, deviceId: await getDeviceId() };
         case "status": {
             // The player page asks every 2 seconds. The window is also asked to report at once:
             // its own report timer is slowed right down by the browser while the window is

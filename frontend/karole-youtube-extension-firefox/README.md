@@ -60,3 +60,5 @@ admin page's live "Time left".
 Since 1.7.5 the player page asks the window for its state every 2 seconds, so a hidden, paused
 window no longer looks disconnected. After updating the extension, reload the player page and
 reopen the YouTube window.
+Since 1.8.0 only the main screen plays; if another device becomes the main screen, this window
+closes by itself.

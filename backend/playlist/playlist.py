@@ -6,6 +6,7 @@ from models import (
     PlaylistMove,
     PlaylistJump,
     PlaylistPosition,
+    ScreenInput,
     QueueSettingsInput,
 )
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -261,6 +262,37 @@ async def add_song(body: PlaylistInput):
         priority_num = playlist_store.find_priority_for_name(playlist_entry["name_id"]) + 1
         playlist_store.add_song(playlist_entry, priority_num)
     return playlist_entry
+
+# The main screen: which device plays the video; every other device's View is a remote. Kept with
+# the queue settings, so it survives restarts. Admin-only, and not in the public /progress.
+async def read_screen() -> dict:
+    settings = await queue_settings_col.find_one({"_id": "queue"}) or {}
+    return {
+        "device_id": settings.get("screen_device_id"),
+        "label": settings.get("screen_label") or "",
+        "since": settings.get("screen_since"),
+    }
+
+async def save_screen(device_id: str, label: str) -> None:
+    await queue_settings_col.update_one(
+        {"_id": "queue"},
+        {"$set": {"screen_device_id": device_id, "screen_label": label, "screen_since": time.time()}},
+        upsert=True,
+    )
+
+@router.get("/screen", dependencies=[Depends(require_admin)])
+async def get_screen() -> dict:
+    return await read_screen()
+
+# Makes this device the main screen. With only_if_unset, it's only taken when no device has it
+# yet (the first View with the extension claims it by itself), so it can't steal it.
+@router.post("/screen", dependencies=[Depends(require_admin)])
+async def set_screen(body: ScreenInput, only_if_unset: bool = False) -> dict:
+    async with queue_settings_lock:
+        current = await read_screen()
+        if not (only_if_unset and current["device_id"]):
+            await save_screen(body.device_id, body.label.strip())
+        return await read_screen()
 
 @router.get("/queue-settings")
 async def get_queue_settings() -> dict[str, bool | int]:

@@ -8,6 +8,7 @@ import SongThumbnail from "../../../components/song-thumbnail";
 import QueueSettingsCard from "../../../components/queue-settings-card";
 import { useQueueSettings } from "../../../lib/use-queue-settings";
 import { fetchQueueFinished } from "../../../lib/use-playlist";
+import { fetchMainScreen } from "../../../lib/main-screen";
 import { fromSong, steerYouTubeWindow } from "../../../lib/youtube-window";
 import { describeWaits, formatLength, heldAtStart, songElapsed, stampClock, totalLength } from "../../../lib/queue-time";
 import shared from "../admin.module.css";
@@ -72,6 +73,8 @@ export default function AdminPlaylist() {
     const queue = useQueueSettings();
     // True once playback has run past the last song (playback.song is then that song).
     const [finished, setFinished] = useState(false);
+    // Which device plays the video (set from Admin → View).
+    const [mainScreen, setMainScreen] = useState(null);
     // This computer's clock, in seconds, moved on every second so Time left counts down.
     const [now, setNow] = useState(0);
 
@@ -99,7 +102,9 @@ export default function AdminPlaylist() {
                 const queueFinished = await fetchQueueFinished();
                 const blockedResponse = await adminFetch(`${BACKEND_URI}/playlist/blocked`, { cache: "no-store" });
                 const blockedSongs = blockedResponse.ok ? await blockedResponse.json() : null;
+                const screen = await fetchMainScreen().catch(() => null);
                 if (isActive) {
+                    if (screen) setMainScreen(screen);
                     if (blockedSongs) setBlocked(blockedSongs);
                     setPlayback(stampClock(nextPlayback));
                     setFinished(queueFinished);
@@ -319,6 +324,13 @@ export default function AdminPlaylist() {
                             {wholeQueueWaits && <dd className={styles.statNote}>{wholeQueueWaits}</dd>}
                         </div>
                     </dl>
+                    {mainScreen && (
+                        <p className={styles.screenNote}>
+                            {mainScreen.device_id
+                                ? `Main screen: ${mainScreen.label || "a device"}`
+                                : "No main screen yet: open Admin → View on the laptop for the TV"}
+                        </p>
+                    )}
                 </div>
 
                 <div className={`${styles.controls} ${playback.playing ? styles.isPlaying : ""}`}>
@@ -389,7 +401,7 @@ export default function AdminPlaylist() {
                                         // inside something draggable.
                                         draggable={openMenu !== song.p_id}
                                         onClick={(event) => {
-                                            if (draggedId !== null || event.target.closest("button, input, a")) return;
+                                            if (draggedId !== null || event.target.closest(`button, input, a, .${styles.menu}`)) return;
                                             jumpSong(song);
                                         }}
                                         onDragStart={() => setDraggedId(song.p_id)}
@@ -453,7 +465,14 @@ export default function AdminPlaylist() {
                                     ...
                                 </button>
                                 {openMenu === song.p_id && (
-                                    <div className={styles.menu} style={menuPosition || undefined} ref={menuRef}>
+                                    <div
+                                        className={styles.menu}
+                                        style={menuPosition || undefined}
+                                        ref={menuRef}
+                                        // A tap anywhere in the menu, even on its empty space or a box's
+                                        // label, never counts as a tap on the song (which would play it).
+                                        onClick={(event) => event.stopPropagation()}
+                                    >
                                         <button onClick={() => moveSong(song.p_id, index - 1)} disabled={index === 0}>Move up</button>
                                         <button onClick={() => moveSong(song.p_id, index + 1)} disabled={index === songs.length - 1}>Move down</button>
                                         <label>
