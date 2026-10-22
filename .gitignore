@@ -2,3 +2,6 @@
 backend/playlist/playlist_log.jsonl
 backend/.env
 backend/.venv
+*.DS_Store
+*.patch
+.claude/
