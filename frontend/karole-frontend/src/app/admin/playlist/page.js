@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
 import AdminHeader from "../../../components/admin-header";
@@ -9,7 +9,7 @@ import QueueSettingsCard from "../../../components/queue-settings-card";
 import { useQueueSettings } from "../../../lib/use-queue-settings";
 import { fetchQueueFinished } from "../../../lib/use-playlist";
 import { fromSong, steerYouTubeWindow } from "../../../lib/youtube-window";
-import { formatLength, totalLength } from "../../../lib/queue-time";
+import { describeWaits, formatLength, heldAtStart, songElapsed, stampClock, totalLength } from "../../../lib/queue-time";
 import shared from "../admin.module.css";
 import styles from "./page.module.css";
 import { getErrorMessage, statusMessage } from "../../../lib/api-error";
@@ -50,10 +50,16 @@ export default function AdminPlaylist() {
     // the table's edges can't cut it off when there are only a few songs.
     const [menuPosition, setMenuPosition] = useState(null);
 
-    // A floating menu would drift away from its song when the page scrolls, so close it.
+    // A floating menu would drift away from its song when the page scrolls, so close it. Not
+    // while one of its boxes is being typed in, though: on a phone the keyboard coming up
+    // scrolls and resizes the page, which would close the menu and with it the keyboard.
+    const menuRef = useRef(null);
     useEffect(() => {
         if (openMenu === null) return;
-        const close = () => setOpenMenu(null);
+        const close = () => {
+            if (menuRef.current?.contains(document.activeElement)) return;
+            setOpenMenu(null);
+        };
         window.addEventListener("scroll", close, { passive: true });
         window.addEventListener("resize", close);
         return () => {
@@ -66,6 +72,15 @@ export default function AdminPlaylist() {
     const queue = useQueueSettings();
     // True once playback has run past the last song (playback.song is then that song).
     const [finished, setFinished] = useState(false);
+    // This computer's clock, in seconds, moved on every second so Time left counts down.
+    const [now, setNow] = useState(0);
+
+    useEffect(() => {
+        const tick = () => setNow(Date.now() / 1000);
+        tick();
+        const timer = window.setInterval(tick, 1000);
+        return () => window.clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         let isActive = true;
@@ -86,7 +101,7 @@ export default function AdminPlaylist() {
                 const blockedSongs = blockedResponse.ok ? await blockedResponse.json() : null;
                 if (isActive) {
                     if (blockedSongs) setBlocked(blockedSongs);
-                    setPlayback(nextPlayback);
+                    setPlayback(stampClock(nextPlayback));
                     setFinished(queueFinished);
                     setSongs(playlist.sort((first, second) => first.order_num - second.order_num));
                     setStatus("ready");
@@ -129,7 +144,7 @@ export default function AdminPlaylist() {
         }
         const nextPlayback = await response.json();
         const nextFinished = await fetchQueueFinished();
-        setPlayback(nextPlayback);
+        setPlayback(stampClock(nextPlayback));
         setFinished(nextFinished);
         steerYouTubeWindow(nextPlayback, nextFinished);
     }
@@ -176,7 +191,7 @@ export default function AdminPlaylist() {
             if (!response.ok) {
                 throw new Error(getErrorMessage(result, response));
             }
-            setPlayback(result);
+            setPlayback(stampClock(result));
             setFinished(false);
             steerYouTubeWindow(result, false);
         } catch (requestError) {
@@ -259,6 +274,15 @@ export default function AdminPlaylist() {
     // Time left counts the song playing now and everything after it.
     const currentIndex = songs.findIndex((song) => song.p_id === playback.song?.p_id);
     const remaining = currentIndex >= 0 ? songs.slice(currentIndex + (finished ? 1 : 0)) : songs;
+    // Counts down while the song plays: the part of it already sung isn't left.
+    const elapsed = currentIndex >= 0 && !finished ? songElapsed(playback, now) : 0;
+    const timeLeft = Math.max(0, totalLength(remaining) - elapsed);
+    // With "Start each song paused", each song still to start waits first. The current song only
+    // counts while it's held at the start (paused, not yet begun).
+    const currentHeld = currentIndex >= 0 && !finished && heldAtStart(playback.playing, elapsed);
+    const waitsLeft = remaining.filter((song) => song.p_id !== playback.song?.p_id || currentHeld).length;
+    const timeLeftWaits = describeWaits(timeLeft, waitsLeft, queue);
+    const wholeQueueWaits = describeWaits(totalLength(songs), songs.length, queue);
 
     let playbackState = "Nothing is playing";
     if (finished) {
@@ -286,11 +310,13 @@ export default function AdminPlaylist() {
                         </div>
                         <div>
                             <dt>Time left</dt>
-                            <dd>{formatLength(totalLength(remaining))}</dd>
+                            <dd>{formatLength(timeLeft)}</dd>
+                            {timeLeftWaits && <dd className={styles.statNote}>{timeLeftWaits}</dd>}
                         </div>
                         <div>
                             <dt>Whole queue</dt>
                             <dd>{formatLength(totalLength(songs))}</dd>
+                            {wholeQueueWaits && <dd className={styles.statNote}>{wholeQueueWaits}</dd>}
                         </div>
                     </dl>
                 </div>
@@ -359,7 +385,9 @@ export default function AdminPlaylist() {
                                             currentIndex >= 0 && (index < currentIndex || (finished && index === currentIndex)) && styles.sungRow,
                                         ].filter(Boolean).join(" ")}
                                         key={song.p_id}
-                                        draggable
+                                        // Not while its menu is open: Firefox won't let anyone type in a box
+                                        // inside something draggable.
+                                        draggable={openMenu !== song.p_id}
                                         onClick={(event) => {
                                             if (draggedId !== null || event.target.closest("button, input, a")) return;
                                             jumpSong(song);
@@ -425,7 +453,7 @@ export default function AdminPlaylist() {
                                     ...
                                 </button>
                                 {openMenu === song.p_id && (
-                                    <div className={styles.menu} style={menuPosition || undefined}>
+                                    <div className={styles.menu} style={menuPosition || undefined} ref={menuRef}>
                                         <button onClick={() => moveSong(song.p_id, index - 1)} disabled={index === 0}>Move up</button>
                                         <button onClick={() => moveSong(song.p_id, index + 1)} disabled={index === songs.length - 1}>Move down</button>
                                         <label>
@@ -434,8 +462,13 @@ export default function AdminPlaylist() {
                                                 type="number"
                                                 min="1"
                                                 max={songs.length}
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
                                                 value={targetPositions[song.p_id] || ""}
                                                 onChange={(event) => updateTarget(song.p_id, event.target.value)}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === "Enter") moveSong(song.p_id, Number(targetPositions[song.p_id]) - 1);
+                                                }}
                                             />
                                             <button onClick={() => moveSong(song.p_id, Number(targetPositions[song.p_id]) - 1)}>Move</button>
                                         </label>
@@ -445,8 +478,13 @@ export default function AdminPlaylist() {
                                                 type="number"
                                                 min="1"
                                                 max={songs.length}
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
                                                 value={targetPositions[`swap-${song.p_id}`] || ""}
                                                 onChange={(event) => updateTarget(`swap-${song.p_id}`, event.target.value)}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === "Enter") swapSong(song.p_id, targetPositions[`swap-${song.p_id}`]);
+                                                }}
                                             />
                                             <button onClick={() => swapSong(song.p_id, targetPositions[`swap-${song.p_id}`])}>Swap</button>
                                         </label>

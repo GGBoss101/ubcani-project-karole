@@ -244,6 +244,22 @@ function cancelCountdown(why) {
     if (desired?.pId != null) countdownFor = desired.pId;
 }
 
+// Tells the backend where the song really is when that changes in a way it can't work out itself:
+// the song (not an ad) starts or resumes, pauses, or jumps (a seek, or a stall it fell behind
+// in). Between those it counts the time itself, so nothing is sent while the song just plays.
+let lastPosition = null; // { videoId, state, time, rate, at }
+
+function reportPosition(current) {
+    if (!desired || desired.pId == null || current.ad || current.videoId !== desired.videoId) return;
+    if (!["playing", "paused"].includes(current.state)) return;
+    const now = Date.now();
+    const last = lastPosition?.videoId === current.videoId ? lastPosition : null;
+    const expected = last ? last.time + (last.state === "playing" ? ((now - last.at) / 1000) * (last.rate || 1) : 0) : null;
+    lastPosition = { videoId: current.videoId, state: current.state, time: current.time, rate: current.rate, at: now };
+    if (last && last.state === current.state && Math.abs(current.time - expected) < 2) return;
+    browser.runtime.sendMessage({ from: "youtube", type: "position", pId: desired.pId, time: current.time }).catch(() => {});
+}
+
 function tick() {
     addKioskStyle();
     showYouTubeControls(settings.showControls);
@@ -251,6 +267,7 @@ function tick() {
     const current = status();
     applyDesired(current);
     startCountdown(current);
+    reportPosition(current);
     report();
 }
 
@@ -294,6 +311,10 @@ browser.runtime.onMessage.addListener((message) => {
         showYouTubeControls(settings.showControls);
         applyVolume();
         if (!status().ad) applyRate();
+    } else if (message.type === "report") {
+        // youtube-main.js answers any command it doesn't know with a fresh report, which comes
+        // back through tick() like its regular ones.
+        command("report");
     }
 });
 

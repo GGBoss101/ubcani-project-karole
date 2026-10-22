@@ -56,18 +56,21 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
         algorithm="HS256",
     )
     # HttpOnly keeps the token away from page scripts. SameSite=Lax means the browser only
-    # sends it from pages on the same host as this server.
+    # sends it from pages on the same host as this server. Secure means it only ever travels
+    # encrypted, so nobody on the same Wi-Fi can copy it: admins sign in through the https link,
+    # or on the laptop at http://localhost, which browsers count as secure too.
     response.set_cookie(
         key=ADMIN_COOKIE_NAME,
         value=token,
         max_age=int(LOGIN_LIFETIME.total_seconds()),
         httponly=True,
         samesite="lax",
+        secure=True,
     )
     return {"message": "Logged in"}
 
 
 @router.post("/logout")
 async def logout(response: Response) -> dict[str, str]:
-    response.delete_cookie(ADMIN_COOKIE_NAME)
+    response.delete_cookie(ADMIN_COOKIE_NAME, httponly=True, samesite="lax", secure=True)
     return {"message": "Logged out"}

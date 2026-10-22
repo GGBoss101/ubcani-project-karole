@@ -285,8 +285,15 @@ async function fromSite(message, tab, senderUrl) {
             if (youtubeTab) await chrome.windows.remove(youtubeTab.windowId);
             return { ok: true };
         }
-        case "status":
-            return { ok: true, open: Boolean(await getYouTubeTab()), status: state.lastStatus };
+        case "status": {
+            // The player page asks every 2 seconds. The window is also asked to report at once:
+            // its own report timer is slowed right down by the browser while the window is
+            // hidden (minimized or covered) and quiet, but messages still get through. Nothing
+            // listening there (a page loading, or left over from before an update) is fine.
+            const youtubeTab = await getYouTubeTab();
+            if (youtubeTab) chrome.tabs.sendMessage(youtubeTab.id, { type: "report" }).catch(() => {});
+            return { ok: true, open: Boolean(youtubeTab), status: state.lastStatus };
+        }
         default:
             return { ok: false, error: `Unknown command ${message.type}` };
     }
@@ -300,6 +307,17 @@ async function fromYouTube(message, tab) {
         // song held at the start also gets its auto-play delay, for the window's countdown.
         const autoPlaySeconds = controlled && desired && !desired.playing ? await autoPlayDelay() : 0;
         return { controlled, desired: controlled ? desired : null, settings: controlled ? settings : null, autoPlaySeconds };
+    }
+    if (controlled && message.type === "position") {
+        // Only for the queue's song; the backend also ignores it if the queue has moved on.
+        if (desired?.pId === message.pId && Number.isFinite(message.time)) {
+            await fromBackend("/playlist/position", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ p_id: message.pId, position: Math.max(0, message.time) }),
+            }).catch(() => {});
+        }
+        return { ok: true };
     }
     if (controlled && message.type === "auto-play") {
         await autoPlay(message.pId);

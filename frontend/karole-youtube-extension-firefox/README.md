@@ -55,3 +55,8 @@ Since 1.7.2 the window follows the backend by itself, so the queue can be run fr
 Karole page awake on this computer.
 Since 1.7.3 its auto-play and its move to the next song can't clash with presses from a phone at the
 same moment.
+Since 1.7.4 it reports where the song really is when it starts, pauses, resumes or jumps, for the
+admin page's live "Time left".
+Since 1.7.5 the player page asks the window for its state every 2 seconds, so a hidden, paused
+window no longer looks disconnected. After updating the extension, reload the player page and
+reopen the YouTube window.

@@ -6,11 +6,11 @@ import mei from "../../../assets/Mei_NEW_cropped.png";
 import Header from "../../components/header";
 import QueueItem from "../../components/queue-item";
 import { usePlaylist } from "../../lib/use-playlist";
-import { describeLength, totalLength } from "../../lib/queue-time";
+import { describeEstimate } from "../../lib/queue-time";
 import styles from "./page.module.css";
 
 export default function Playlist() {
-    const { songs, upcoming, currentId, status, error } = usePlaylist();
+    const { songs, upcoming, currentId, progress, now, status, error } = usePlaylist();
     const playedCount = songs.length - upcoming.length;
 
     return (
@@ -28,7 +28,7 @@ export default function Playlist() {
                     {status === "ready" && upcoming.length > 0 && (
                         <p className={styles.count}>
                             {upcoming.length} {upcoming.length === 1 ? "song" : "songs"} to go ·{" "}
-                            {describeLength(totalLength(upcoming))}
+                            {describeEstimate(upcoming, progress, now)}
                         </p>
                     )}
                 </div>

@@ -51,7 +51,11 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
   and the player page asks what is playing every 0.5 seconds.
 - **Admin login.** The backend sets an HttpOnly cookie, `karole_admin_token`, which page
   scripts can't read. `lib/admin-auth.js` sends it with every admin request and goes to the
-  login page whenever the backend answers 401.
+  login page whenever the backend answers 401. The cookie is also Secure: it only travels over
+  encrypted connections, so nobody on the same Wi-Fi can copy it. Admins therefore sign in through
+  the https link, or on the laptop at http://localhost:3000. Over a plain http address (say
+  http://192.168.x.x:3000 from a phone) the browser won't keep it and sign-in won't stick. Safari
+  doesn't count http://localhost as secure, so use Chrome or Firefox on the laptop, or the https link.
 - **Singer names.** After someone's first song, their name is remembered in a cookie,
   `karole-user-name`, for a year, and the name field locks, so later songs count as theirs
   for queue order. A mistyped name can be merged into the right one on Admin → Names.
@@ -77,6 +81,25 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
   remote" does the reverse. Presses from a phone reach the YouTube window within a second or two,
   even with no Karole page awake on the laptop, because extension 1.7.2 checks the backend itself.
   Volume, speed, captions and full screen stay on the laptop's View page.
+- **Keeping View connected.** View asks the YouTube window for its state every 2 seconds (extension
+  1.7.5), so a window that's minimized, covered or on another screen keeps answering even when the
+  browser slows it down. If View still says the window isn't responding, "Reconnect the YouTube
+  window" reopens it; after the extension is updated View says so instead: reload View, then reopen
+  the window.
+- **"About 40–45 min to go".** The public Playlist and Add pages estimate the time left, live: it
+  goes down while a song plays and holds while it's paused (`/playlist/progress`, public, polled with
+  the queue every 5 seconds; redrawn every 30 seconds). With "Start each song paused" and auto-play
+  on it's a range: the low end if Play is always pressed straight away, the high end with every
+  auto-play delay still to come. Without auto-play it adds "plus short pauses". Ads and the moments
+  while a song loads aren't counted, so it stays "about".
+- **Time left and the waits.** On the admin Playlist page, "Time left" counts down every second
+  while a song plays and stops while it's paused: the backend keeps the current song's position in
+  memory (`position`, `position_at`, `server_time` in `/playlist/current-play`), and the YouTube
+  window corrects it whenever the song starts, pauses, resumes or jumps (extension 1.7.4, through
+  `POST /playlist/position`). "Whole queue" is the songs' lengths added up. With "Start each song
+  paused" on, a small line under each adds the delays: with auto-play, "+ 0:50 delays = 1:12:30" (one
+  wait per song not started yet; the current song only while it's still held at the start); with
+  auto-play off, "+ pauses", since those last until someone presses Play.
 - **Several people controlling at once.** The buttons say what they mean rather than toggling or
   counting places, so presses from several phones at the same moment agree: Play and Pause call
   `/playlist/play` and `/playlist/pause` (the old toggle, `/playlist/play_pause`, still works); Skip

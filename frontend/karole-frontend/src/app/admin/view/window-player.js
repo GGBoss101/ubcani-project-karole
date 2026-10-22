@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { listenToExtension, sendToExtension, videoIdOf } from "../../../lib/youtube-window";
+import { detectExtension, listenToExtension, sendToExtension, videoIdOf } from "../../../lib/youtube-window";
+import { startTicker } from "../../../lib/background-ticker";
 import { formatLength } from "../../../lib/queue-time";
 import AutoPlayDelay from "../../../components/auto-play-delay";
 import styles from "./page.module.css";
@@ -66,6 +67,12 @@ export default function WindowPlayer({
         const timer = window.setInterval(() => setNow(Date.now()), 2000);
         return () => window.clearInterval(timer);
     }, []);
+
+    // Asks the window how it's doing every 2 seconds rather than only waiting to hear from it:
+    // while it's hidden (minimized or covered) and quiet, the browser slows its own report timer
+    // to as little as once a minute, but it still answers when asked (extension 1.7.5). A worker
+    // ticker, so this keeps going while this page is in a background tab.
+    useEffect(() => startTicker(() => sendToExtension({ type: "status" }), 2000), []);
 
     // A new song (or none): point the YouTube window at it.
     useEffect(() => {
@@ -152,6 +159,19 @@ export default function WindowPlayer({
     // A song is up but the window has gone quiet: it was closed, or it's left over from before
     // the extension was reloaded and no longer listens.
     const silent = Boolean(song) && state !== "closed" && now - lastHeard > 8000;
+    // Whether the silence is because the extension was updated or reloaded: this page's link to
+    // it then stops answering too, until the page is reloaded.
+    const [bridgeGone, setBridgeGone] = useState(false);
+    useEffect(() => {
+        if (!silent) return;
+        let active = true;
+        detectExtension().then((version) => {
+            if (active) setBridgeGone(!version);
+        });
+        return () => {
+            active = false;
+        };
+    }, [silent]);
     // The song should be playing but YouTube is sitting still: Chrome only lets a page start
     // with sound after someone clicks in it (see the extension's README for a setting that
     // lifts this on a computer).
@@ -210,7 +230,15 @@ export default function WindowPlayer({
             {state === "closed" && song && (
                 <p className={styles.notice} role="status">The YouTube window was closed. Open it again below.</p>
             )}
-            {silent && (
+            {silent && bridgeGone && (
+                <div className={styles.notice} role="alert">
+                    <p>The extension was updated. Reload this page, then reopen the YouTube window.</p>
+                    <button type="button" className={styles.iconButton} onClick={() => window.location.reload()}>
+                        Reload this page
+                    </button>
+                </div>
+            )}
+            {silent && !bridgeGone && (
                 <div className={styles.notice} role="alert">
                     <p>
                         The YouTube window isn&apos;t responding, so the controls can&apos;t reach it. Reconnect

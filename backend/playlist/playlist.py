@@ -5,6 +5,7 @@ from models import (
     PlaylistSwap,
     PlaylistMove,
     PlaylistJump,
+    PlaylistPosition,
     QueueSettingsInput,
 )
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -191,6 +192,7 @@ def hold_new_song(before_p_id: int | None, pause_before_songs: bool) -> None:
     song = playlist_store.current_song
     if pause_before_songs and song is not None and song.p_id != before_p_id and playlist_store.playing:
         playlist_store.playing = False
+        playlist_store.reset_position()
         playlist_store.renumber_and_log()
 
 
@@ -285,9 +287,34 @@ async def queue_finished() -> bool:
     # True once playback has run past the last song; now-playing then still names that song.
     return playlist_store.finished
 
+# For the public pages' live "about 40–45 min to go": which song is on, how far into it playback
+# is (as in current-play) and the start delay settings, in one request. Nothing here is private:
+# the queue is public anyway.
+@router.get("/progress")
+async def progress() -> dict:
+    settings = await read_queue_settings()
+    state = playlist_store.playback_state()
+    return {
+        "p_id": current_p_id(),
+        "finished": playlist_store.finished,
+        "playing": state["playing"],
+        "position": state["position"],
+        "position_at": state["position_at"],
+        "server_time": state["server_time"],
+        "pause_before_songs": settings["pause_before_songs"],
+        "auto_play": settings["auto_play"],
+        "auto_play_seconds": settings["auto_play_seconds"],
+    }
+
 @router.get("/current-play", dependencies=[Depends(require_admin)])
 async def playing_song():
     return playlist_store.playback_state()
+
+# The YouTube window's real position in the current song (see Playlist.set_position). A report
+# about a song that's no longer current is ignored.
+@router.post("/position", dependencies=[Depends(require_admin)])
+async def report_position(body: PlaylistPosition) -> bool:
+    return playlist_store.set_position(body.p_id, body.position)
 
 @router.get("/playback-source", dependencies=[Depends(require_admin)])
 async def playback_source() -> dict[str, str | None]:

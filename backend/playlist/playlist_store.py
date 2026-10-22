@@ -33,10 +33,43 @@ class Playlist:
         self.log_path = log_path
         self.songs: list[PlaylistEntry] = []
         self.current_song: PlaylistEntry | None = None
-        self.playing = False
+        # How far into the current song playback is: `position` seconds at server time
+        # `position_at`, plus the time since then while playing. Kept in memory only (not in the
+        # log), for the admin page's live "Time left"; the YouTube window corrects it (set_position).
+        self.position = 0.0
+        self.position_at = time.time()
+        self._playing = False
         # True once playback has run past the last song. current_song then stays on that
         # last song, so everything up to it counts as sung and new songs play next.
         self.finished = False
+
+    @property
+    def playing(self) -> bool:
+        return self._playing
+
+    @playing.setter
+    def playing(self, playing: bool) -> None:
+        # Pausing banks the time played so far; playing restarts the clock from where it was.
+        now = time.time()
+        if self._playing:
+            self.position += now - self.position_at
+        self.position_at = now
+        self._playing = playing
+
+    def reset_position(self) -> None:
+        # A different song (or the same one from the start) begins at 0.
+        self.position = 0.0
+        self.position_at = time.time()
+
+    def set_position(self, p_id: int, position: float) -> bool:
+        # The real position, reported by the YouTube window; ignored if it's about another song.
+        if self.current_song is None or self.current_song.p_id != p_id:
+            return False
+        if self.current_song.duration:
+            position = min(position, self.current_song.duration)
+        self.position = max(0.0, position)
+        self.position_at = time.time()
+        return True
 
     def renumber_and_log(self) -> None:
         # order_num always mirrors the position in the list, so it never has gaps or duplicates.
@@ -179,6 +212,7 @@ class Playlist:
         self.current_song = None
         self.playing = False
         self.finished = False
+        self.reset_position()
         self.renumber_and_log()
 
     def requeue_songs_under_name(self, old_name_id: int, name_entry: NameEntry, combine_queues: bool = True) -> None:
@@ -232,10 +266,18 @@ class Playlist:
                 self.current_song = song
         self.playing = False
         self.finished = finished and self.current_song is not None
+        self.reset_position()
         self.renumber_and_log()
 
     def playback_state(self) -> dict:
-        return {"playing": self.playing, "song": self.current_song}
+        # position is as of position_at; server_time lets a page allow for its own clock being off.
+        return {
+            "playing": self.playing,
+            "song": self.current_song,
+            "position": self.position,
+            "position_at": self.position_at,
+            "server_time": time.time(),
+        }
 
     def select_song(self, index: int) -> None:
         # Plays the song at this position. Past the end it stops on the last song (see
@@ -251,6 +293,7 @@ class Playlist:
         else:
             self.current_song = None
             self.playing = False
+        self.reset_position()
 
     def play_pause(self) -> bool:
         current_index = self.find_current_index()
@@ -265,6 +308,7 @@ class Playlist:
             if not self.songs:
                 return False
             self.current_song = self.songs[0]
+            self.reset_position()
         self.playing = not self.playing
         self.renumber_and_log()
         return self.playing

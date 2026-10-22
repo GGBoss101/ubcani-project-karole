@@ -234,7 +234,106 @@ async def main_test() -> None:
         each_song_once(store, 7)
         check(store.current_song is None or store.current_song in store.songs, "the current song is in the queue")
 
+    await position_test()
+    await login_cookie_test()
     print("\nAll checks passed. Temporary logs were written to", LOG_DIR)
+
+
+async def login_cookie_test() -> None:
+    # The admin login cookie only travels encrypted. Uses a made-up username, password and signing
+    # secret for this test only; the real ones from .env are never read or shown here.
+    import auth
+
+    real = (auth.ADMIN_USERNAME, auth.ADMIN_PASSWORD, auth.JWT_SECRET)
+    auth.ADMIN_USERNAME, auth.ADMIN_PASSWORD, auth.JWT_SECRET = "test-admin", "test-password", "test-secret"
+    try:
+        print("The admin login cookie")
+        transport = httpx.ASGITransport(app=main.app)
+        async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
+            answer = await client.post("/auth/login", data={"username": "test-admin", "password": "test-password"})
+            cookie = answer.headers.get("set-cookie", "")
+            attributes = {part.strip().split("=")[0].lower() for part in cookie.split(";")}
+            check(answer.status_code == 200 and cookie.startswith(f"{auth.ADMIN_COOKIE_NAME}="), "signing in sets the cookie")
+            check({"secure", "httponly", "path"} <= attributes and "samesite=lax" in cookie.lower(),
+                  "it's Secure, HttpOnly and SameSite=Lax")
+            check("max-age=18000" in cookie.lower(), "it lasts 5 hours, as before")
+            answer = await client.post("/auth/logout")
+            cookie = answer.headers.get("set-cookie", "").lower()
+            check(cookie.startswith(f"{auth.ADMIN_COOKIE_NAME}=") and "max-age=0" in cookie and "secure" in cookie,
+                  "signing out clears it")
+            answer = await client.post("/auth/login", data={"username": "test-admin", "password": "wrong"})
+            check(answer.status_code == 401 and "set-cookie" not in answer.headers, "a wrong password sets nothing")
+    finally:
+        auth.ADMIN_USERNAME, auth.ADMIN_PASSWORD, auth.JWT_SECRET = real
+
+
+async def position_test() -> None:
+    # The song clock behind the admin page's live "Time left", on a pretend server clock.
+    import types
+    from playlist import playlist_store as store_module
+
+    clock = [10_000.0]
+    real_time = store_module.time
+    store_module.time = types.SimpleNamespace(time=lambda: clock[0])
+    try:
+        def elapsed(store: Playlist) -> float:
+            state = store.playback_state()
+            return state["position"] + (state["server_time"] - state["position_at"] if state["playing"] else 0)
+
+        print("The current song's position")
+        store = fresh_queue(playing=False)
+        store.reset_position()
+        clock[0] += 30
+        check(elapsed(store) == 0, "a paused song stays at 0:00")
+        store.set_playing(True)
+        clock[0] += 40
+        check(elapsed(store) == 40, "40 s after Play it's at 0:40")
+        store.set_playing(False)
+        clock[0] += 100
+        check(elapsed(store) == 40, "Pause stops it at 0:40")
+        store.set_playing(True)
+        clock[0] += 5
+        check(elapsed(store) == 45, "Play carries on from 0:40")
+        check(store.set_position(0, 120) and elapsed(store) == 120, "the YouTube window's report sets it to 2:00")
+        check(not store.set_position(3, 10) and elapsed(store) == 120, "a report about another song is ignored")
+        check(store.set_position(0, 999) and elapsed(store) == 200, "a report past the end is held at the song's length")
+        store.skip()
+        check(elapsed(store) == 0, "Skip starts the next song at 0:00")
+        clock[0] += 7
+        store.back()
+        check(elapsed(store) == 0, "Back starts that song at 0:00 too")
+
+        print("Through the routes")
+        store = fresh_queue()
+        transport = httpx.ASGITransport(app=main.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            state = (await client.get("/playlist/current-play")).json()
+            check({"position", "position_at", "server_time"} <= state.keys(), "current-play includes the position")
+            answer = await client.post("/playlist/position", json={"p_id": 0, "position": 33})
+            check(answer.json() is True and store.position == 33, "the window's report for the current song is taken")
+            answer = await client.post("/playlist/position", json={"p_id": 4, "position": 90})
+            check(answer.json() is False and store.position == 33, "a report for another song is ignored")
+            await client.post("/playlist/skip?from_p_id=0")
+            check(store.position == 0, "skipping resets it")
+
+            print("The public progress route")
+            main.app.dependency_overrides.pop(require_admin)
+            try:
+                answer = await client.get("/playlist/progress")
+                check(answer.status_code == 200, "answers without the admin login")
+                body = answer.json()
+                expected = {"p_id", "finished", "playing", "position", "position_at", "server_time",
+                            "pause_before_songs", "auto_play", "auto_play_seconds"}
+                check(set(body) == expected, "has exactly the song, its position and the delay settings")
+                check(body["p_id"] == 1 and body["playing"] is True and body["finished"] is False,
+                      "names the song playing now")
+                check(body["auto_play_seconds"] == SETTINGS["auto_play_seconds"], "includes the delay settings")
+                answer = await client.get("/playlist/current-play")
+                check(answer.status_code == 401, "current-play still needs the login")
+            finally:
+                main.app.dependency_overrides[require_admin] = lambda: {"admin": True}
+    finally:
+        store_module.time = real_time
 
 
 if __name__ == "__main__":

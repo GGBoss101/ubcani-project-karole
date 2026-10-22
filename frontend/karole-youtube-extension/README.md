@@ -132,3 +132,12 @@ in the background console as "Karole sync: ...".
 Since 1.7.3 the extension's own presses can't clash with someone else's: auto-play presses Play
 (`/playlist/play`) rather than toggling, and moving on after a song ends names that song
 (`/playlist/skip?from_p_id=`), so a Skip from a phone at the same moment doesn't skip two songs.
+Since 1.7.4 the window tells the backend where the song really is (`POST /playlist/position`)
+whenever the song itself starts, pauses, resumes or jumps, for the admin page's live "Time left".
+It only sends on those changes, never every second.
+Since 1.7.5 the player page asks the window for its state every 2 seconds, and the window answers at
+once. A hidden window (minimized, covered, on another screen) that's paused gets its own report
+timer slowed by the browser to as little as once a minute, which made the player page think it had
+disconnected; being asked works anyway. Updating or reloading the extension still cuts off the open
+pages: the player page then says "The extension was updated", and reloading it and reopening the
+YouTube window fixes it.

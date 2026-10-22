@@ -139,6 +139,11 @@ class PlaylistJump(BaseModel):
             raise ValueError("Give p_id or order_num")
         return self
 
+# Where the YouTube window really is in a song, reported when it starts, pauses, resumes or jumps.
+class PlaylistPosition(BaseModel):
+    p_id: int
+    position: float = Field(ge=0)
+
 class QueueSettingsInput(BaseModel):
     # Either or both; a setting left out keeps its value.
     open: bool | None = None

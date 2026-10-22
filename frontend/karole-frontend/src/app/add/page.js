@@ -12,7 +12,7 @@ import QueueItem from "../../components/queue-item";
 import YouTubeSearch from "../../components/youtube-search";
 import { usePlaylist } from "../../lib/use-playlist";
 import { useQueueSettings } from "../../lib/use-queue-settings";
-import { describeLength, totalLength } from "../../lib/queue-time";
+import { describeEstimate } from "../../lib/queue-time";
 import styles from "./page.module.css";
 
 const NAME_COOKIE = "karole-user-name";
@@ -65,7 +65,7 @@ export default function AddSong() {
     const savedName = useSyncExternalStore(subscribeToSavedName, getSavedName, getServerName);
     const name = savedName || submittedName || form.name;
     const hasSavedName = Boolean(savedName || submittedName);
-    const { songs, upcoming, currentId, status: queueStatus } = usePlaylist();
+    const { songs, upcoming, currentId, progress, now, status: queueStatus } = usePlaylist();
     // A first-time singer whose name is already in tonight's queue: asked whether it's them.
     const [nameTaken, setNameTaken] = useState("");
     const upNext = upcoming.slice(0, 4);
@@ -271,7 +271,7 @@ export default function AddSong() {
                     </div>
                     {upcoming.length > 0 && (
                         <p className={styles.queueMessage}>
-                            {upcoming.length} {upcoming.length === 1 ? "song" : "songs"} · {describeLength(totalLength(upcoming))} of singing
+                            {upcoming.length} {upcoming.length === 1 ? "song" : "songs"} · {describeEstimate(upcoming, progress, now, " to go")}
                         </p>
                     )}
                     {queueStatus === "loading" && <p className={styles.queueMessage}>Loading queue...</p>}
