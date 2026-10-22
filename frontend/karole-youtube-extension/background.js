@@ -144,7 +144,8 @@ async function autoPlay(pId) {
         const current = await fromBackend("/playlist/current-play");
         if (current.song?.p_id !== pId) return skip(`the backend is on song ${current.song?.p_id}`);
         if (current.playing) return skip("the backend says it is already playing");
-        const playing = await fromBackend("/playlist/play_pause", { method: "POST" });
+        // Play, not a toggle, so a Play pressed elsewhere at the same moment can't turn it off again.
+        const playing = await fromBackend("/playlist/play", { method: "POST" });
         console.log(`Karole auto-play: pressed Play for song ${pId}, the backend answered playing=${playing}`);
         if (playing !== true) return;
         await chrome.storage.session.set({ desired: { ...desired, playing: true } });
@@ -162,8 +163,9 @@ async function advanceAfter(pId) {
         const current = await fromBackend("/playlist/current-play");
         // Someone already moved on (say skip was pressed in the song's last second).
         if (current.song?.p_id !== pId) return true;
-        // With "Start each song paused" on, the backend answers with the next song paused.
-        const next = await fromBackend("/playlist/skip", { method: "POST" });
+        // With "Start each song paused" on, the backend answers with the next song paused. Naming
+        // the song makes this skip do nothing if someone (say on a phone) skipped it meanwhile.
+        const next = await fromBackend(`/playlist/skip?from_p_id=${pId}`, { method: "POST" });
         const finished = await fromBackend("/playlist/queue-finished");
         const videoId = next.song?.url_id;
         if (!finished && next.song && VIDEO_ID.test(videoId || "")) {
@@ -173,6 +175,47 @@ async function advanceAfter(pId) {
     } catch {
         return false;
     }
+}
+
+// Keeps the window in step with the backend by itself, so Play, Pause, Skip, Back or a jump pressed
+// anywhere (on a phone, say, where there's no extension) reaches it within a second or two, even
+// with no Karole page awake on this computer. Runs on the window's status reports, which come at
+// least every second while it's open, at most once a second. Messages are handled one at a time,
+// so a press made on this computer is applied either before this (and is already in the backend's
+// answer) or after it, never undone by it. Moving on from a song that ended is advanceAfter's job:
+// while the backend is still on that song, nothing is done, so it's never played again.
+let lastSyncAt = 0;
+async function syncFromBackend() {
+    if (Date.now() - lastSyncAt < 1000) return;
+    lastSyncAt = Date.now();
+    const { desired, endedPId } = await chrome.storage.session.get(["desired", "endedPId"]);
+    if (!desired) return;
+    let current;
+    let finished;
+    try {
+        current = await fromBackend("/playlist/current-play");
+        finished = await fromBackend("/playlist/queue-finished");
+    } catch {
+        return; // The backend couldn't be reached; try again on the next report.
+    }
+    const song = finished ? null : current.song;
+    if (!song || !VIDEO_ID.test(song.url_id || "")) {
+        if (desired.playing) {
+            console.log("Karole sync: the queue has nothing to play, pausing the window");
+            await chrome.storage.session.set({ desired: { ...desired, playing: false, autoPlayCancelled: true } });
+            await tellYouTube({ type: "pause", cancelAutoPlay: true });
+        }
+        return;
+    }
+    const playing = Boolean(current.playing);
+    if (song.p_id === endedPId && desired.pId === endedPId) return;
+    if (song.p_id === desired.pId && playing === desired.playing) return;
+    console.log(song.p_id === desired.pId
+        ? `Karole sync: song ${song.p_id} was ${playing ? "played" : "paused"} elsewhere`
+        : `Karole sync: the queue moved to song ${song.p_id} elsewhere, loading it`);
+    // The same song only gets play or pause applied (a real change, so it also cancels an
+    // auto-play countdown); another song is loaded, held at the start if it should wait.
+    await loadVideo(song.url_id, playing, 0, { pId: song.p_id });
 }
 
 async function fromSite(message, tab, senderUrl) {
@@ -270,14 +313,17 @@ async function fromYouTube(message, tab) {
         await tellSites({ type: "status", status });
         // The queue's song finished (not an ad before it): move on from here, so it happens even
         // while the player page is asleep. Each song is only moved on from once.
+        let advanced = false;
         if (status.state === "ended" && !status.ad && desired?.pId != null && status.videoId === desired.videoId) {
             const { endedPId } = await chrome.storage.session.get("endedPId");
             if (endedPId !== desired.pId) {
+                advanced = true;
                 await chrome.storage.session.set({ endedPId: desired.pId });
                 const handled = await advanceAfter(desired.pId);
                 await tellSites({ type: "song-ended", pId: desired.pId, handled });
             }
         }
+        if (!advanced) await syncFromBackend();
     }
     return { ok: true };
 }

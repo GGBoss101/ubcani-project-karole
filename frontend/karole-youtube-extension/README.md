@@ -121,3 +121,14 @@ Pause on the site during the countdown cancels it for that song. Each step is lo
 window's console (and the extension's background console) as "Karole auto-play: ...".
 Since 1.7.1 a held song is also stopped when YouTube moves on to it from an ad, which it does
 without starting the video again.
+
+Since 1.7.2 the extension also checks the backend itself, at most once a second while the YouTube
+window is open (on the window's status reports), and makes the window match: another song is
+loaded, the same song only gets play or pause. So the queue can be run from a phone (admin Playlist
+page, or View, which opens as a remote on phones) with no Karole page awake on this computer. A song
+that just ended is left to the extension's own move to the next song, so it's never replayed, and a
+check that only repeats the current state doesn't cancel an auto-play countdown. Changes are logged
+in the background console as "Karole sync: ...".
+Since 1.7.3 the extension's own presses can't clash with someone else's: auto-play presses Play
+(`/playlist/play`) rather than toggling, and moving on after a song ends names that song
+(`/playlist/skip?from_p_id=`), so a Skip from a phone at the same moment doesn't skip two songs.

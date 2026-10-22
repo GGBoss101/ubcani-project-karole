@@ -420,3 +420,31 @@
     min-width: 0;
   }
 }
+
+/* The phone remote: a note that the video is on the laptop, and the way back to the video player. */
+.remoteNote {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.modeSwitch {
+  justify-self: center;
+}
+
+/* Phones: Back, Play and Skip share the width equally. */
+@media (max-width: 30rem) {
+  .transport {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  /* Also the Play button, which is otherwise wider than its third of the row. */
+  .transport button,
+  .transport .transportPlay {
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0.5rem;
+  }
+}

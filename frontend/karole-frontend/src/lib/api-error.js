@@ -10,6 +10,9 @@ const FRIENDLY_DETAILS = {
     "Song was removed for being too long": "That song was removed for being too long, so it can't be added again.",
     "Queue is closed": "The queue just closed, so no more songs can be added right now.",
     "Video is age-restricted": "That video is age-restricted on YouTube, so it can't be added. Try another upload of the same song.",
+    // Someone else changed the queue first, say from another phone.
+    "Playlist entry not found": "That song isn't in the queue any more; someone may have just removed it.",
+    "One or both playlist entries were not found": "One of those songs isn't in the queue any more; someone may have just changed it.",
 };
 
 // One FastAPI validation error (status 422), e.g. a name with characters it doesn't allow.

@@ -35,102 +35,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* On/off switch for taking songs. */
-.switch {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: var(--tap);
-  border: 1px solid var(--danger);
-  border-radius: var(--radius-pill);
-  padding: 6px 18px 6px 8px;
-  background: transparent;
-  color: var(--danger);
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.switchOn {
-  border-color: var(--light-blue);
-  color: var(--light-blue);
-}
-
-.switch:disabled {
-  opacity: 0.5;
-  cursor: wait;
-}
-
-.switchTrack {
-  position: relative;
-  width: 44px;
-  height: 26px;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--danger) 30%, transparent);
-  transition: background 0.15s;
-}
-
-.switchOn .switchTrack {
-  background: var(--light-blue);
-}
-
-.switchThumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--light-grey);
-  transition: transform 0.15s;
-}
-
-.switchOn .switchThumb {
-  background: var(--navy);
-  transform: translateX(18px);
-}
-
-/* A switch whose "off" is the usual state, so off is shown in plain grey rather than red. */
-.switchPlain:not(.switchOn) {
-  border-color: var(--line-strong);
-  color: var(--text-soft);
-}
-
-.switchPlain:not(.switchOn) .switchTrack {
-  background: var(--line-strong);
-}
-
-/* "Start each song paused", with "Auto-play after a delay" and its seconds box under it. */
-.pauseGroup {
-  display: grid;
-  justify-items: start;
-  gap: 0.75rem;
-}
-
-.autoPlayRow {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-}
-
-/* Off until "Start each song paused" is on: greyed out rather than the busy cursor. */
-.autoPlayRow .switch:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.switchText {
-  display: grid;
-  text-align: left;
-  line-height: 1.2;
-}
-
-.switchText small {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
 .controls {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -222,6 +126,11 @@
 .controlButtons .playButton:active {
   border-color: var(--periwinkle);
   background: var(--periwinkle);
+}
+
+/* The queue's switches, between the playback card and the warnings. */
+.settingsCard {
+  margin-bottom: 1.25rem;
 }
 
 .notice {
@@ -631,21 +540,6 @@
     min-width: 0;
   }
 
-  .switch {
-    width: 100%;
-    justify-content: center;
-  }
-
-  /* Full-width switches, the seconds box centred under its switch. */
-  .pauseGroup {
-    width: 100%;
-    justify-items: stretch;
-  }
-
-  .autoPlayRow {
-    justify-content: center;
-  }
-
   .controls {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -655,12 +549,20 @@
     font-size: 0;
   }
 
+  /* Three equal buttons across the card, big enough for thumbs, Play filled in the middle. */
   .controlButtons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-column: 1 / -1;
+    gap: 0.5rem;
   }
 
-  .controlButtons button {
-    flex: 1;
+  .controlButtons button,
+  .controlButtons .playButton {
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0.5rem;
+    font-size: 0.9375rem;
   }
 
   .channelName,
@@ -676,5 +578,33 @@
   .actionCell {
     width: auto;
     justify-content: flex-end !important;
+  }
+}
+
+/* Touch screens: the warning buttons are full-size tap targets too. */
+@media (pointer: coarse) {
+  .noticeActions button {
+    min-height: 2.75rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Small phones: the three numbers keep to one line each. */
+@media (max-width: 25rem) {
+  .stats {
+    gap: 0.5rem;
+  }
+
+  .stats div {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .stats dt {
+    font-size: 0.625rem;
+    letter-spacing: 0.06em;
+  }
+
+  .stats dd {
+    font-size: 1.0625rem;
   }
 }

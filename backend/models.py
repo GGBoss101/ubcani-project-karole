@@ -109,16 +109,35 @@ class PlaylistEntry(BaseModel):
             raise ValueError("file_loc is required when is_downloaded is true")
         return self
     
+# Songs are best named by p_id, which never changes; a place in the queue (order_num) can point at
+# another song by the time the request arrives if someone else changed the queue meanwhile.
 class PlaylistSwap(BaseModel):
-    original: int
-    swap: int
+    # Either the two songs' p_ids, or (older callers) their places.
+    p_id: int | None = None
+    swap_p_id: int | None = None
+    original: int | None = None
+    swap: int | None = None
+
+    @model_validator(mode="after")
+    def validate_songs(self):
+        if (self.p_id is None or self.swap_p_id is None) and (self.original is None or self.swap is None):
+            raise ValueError("Give p_id and swap_p_id, or original and swap")
+        return self
 
 class PlaylistMove(BaseModel):
     p_id: int
     order_num: int
 
 class PlaylistJump(BaseModel):
-    order_num: int
+    # Either the song's p_id, or (older callers) its place.
+    p_id: int | None = None
+    order_num: int | None = None
+
+    @model_validator(mode="after")
+    def validate_song(self):
+        if self.p_id is None and self.order_num is None:
+            raise ValueError("Give p_id or order_num")
+        return self
 
 class QueueSettingsInput(BaseModel):
     # Either or both; a setting left out keeps its value.

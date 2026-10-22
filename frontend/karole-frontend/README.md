@@ -67,6 +67,24 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
   number of seconds in the box beside it after it's ready (1 to 300, 10 by default). Pressing Play or
   Pause during the countdown cancels it for that song. The countdown runs in the YouTube window, so
   it needs extension 1.7.1.
+- **Queue settings card.** "Taking songs", "Start each song paused" and "Auto-play after a delay"
+  (with its seconds) are one card (`components/queue-settings-card.js`), the same on the admin
+  Playlist page and the phone remote.
+- **Controlling from a phone or tablet.** The admin Playlist page works fully on a phone. Admin →
+  View on a phone or tablet opens as a **remote**: the song on now, Back / Play / Skip and the queue
+  settings, with no video (it plays on the laptop's screen) and no skipping of its own. "Play video on
+  this device" switches to the built-in player instead; on a laptop without the extension, "Use as
+  remote" does the reverse. Presses from a phone reach the YouTube window within a second or two,
+  even with no Karole page awake on the laptop, because extension 1.7.2 checks the backend itself.
+  Volume, speed, captions and full screen stay on the laptop's View page.
+- **Several people controlling at once.** The buttons say what they mean rather than toggling or
+  counting places, so presses from several phones at the same moment agree: Play and Pause call
+  `/playlist/play` and `/playlist/pause` (the old toggle, `/playlist/play_pause`, still works); Skip
+  and Back send the song they were pressed on (`?from_p_id=`), and a second press for a song the
+  queue already left does nothing; jumping to a song and swapping two songs name them by `p_id`
+  rather than by place. A song added twice at the same moment is only queued once. The backend's
+  burst test (`backend/tests/test_concurrency.py`, run with `.venv/bin/python tests/test_concurrency.py`
+  from `backend`) fires simultaneous presses at a throwaway copy of the queue to check this.
 - **Song names** may use any letters, numbers, punctuation and symbols, up to 70 characters
   (no line breaks). People's names stay letters, numbers, spaces and `_`.
 - **Queue switch.** The backend stores `{ "open": true|false }` in MongoDB and checks it

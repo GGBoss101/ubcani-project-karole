@@ -167,6 +167,13 @@ class Playlist:
         self.renumber_and_log()
         return True
 
+    def swap_songs_by_id(self, first_p_id: int, second_p_id: int) -> bool:
+        first_index = self.find_index(first_p_id)
+        second_index = self.find_index(second_p_id)
+        if first_index is None or second_index is None:
+            return False
+        return self.swap_songs(first_index, second_index)
+
     def flush(self) -> None:
         self.songs = []
         self.current_song = None
@@ -261,6 +268,14 @@ class Playlist:
         self.playing = not self.playing
         self.renumber_and_log()
         return self.playing
+
+    def set_playing(self, playing: bool) -> bool:
+        # Play or Pause as pressed, rather than a toggle, so several people pressing the same
+        # button at once agree instead of undoing each other. Play works as in play_pause (after
+        # the queue ran out it starts the next song).
+        if playing == self.playing:
+            return self.playing
+        return self.play_pause()
 
     def skip(self) -> None:
         current_index = self.find_current_index()

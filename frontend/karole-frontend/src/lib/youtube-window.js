@@ -61,6 +61,12 @@ export function steerYouTubeWindow(playback, finished) {
     }
 }
 
+// A Skip or Back request that names the song it was pressed on, so a second press for the same
+// song (say from another phone a moment later) doesn't move the queue twice.
+export function fromSong(path, pId) {
+    return Number.isInteger(pId) ? `${path}?from_p_id=${pId}` : path;
+}
+
 // Whether the installed extension moves the queue on by itself when a song ends (1.6.0 and later).
 export function extensionAdvancesQueue(version) {
     const [major, minor] = String(version || "").split(".").map(Number);

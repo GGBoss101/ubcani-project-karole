@@ -182,12 +182,12 @@ function status() {
     };
 }
 
-// Sends what the video is doing whenever it changes, and at least every 2 seconds so the
+// Sends what the video is doing whenever it changes, and at least every second so the
 // player page can tell the window is still there.
 function report(force = false) {
     const current = status();
     const key = JSON.stringify(current);
-    if (!force && key === lastReport && Date.now() - lastReportAt < 2000) return;
+    if (!force && key === lastReport && Date.now() - lastReportAt < 1000) return;
     lastReport = key;
     lastReportAt = Date.now();
     chrome.runtime.sendMessage({ from: "youtube", type: "status", status: current }).catch(() => {});

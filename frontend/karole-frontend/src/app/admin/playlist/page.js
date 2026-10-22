@@ -1,22 +1,18 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
 import AdminHeader from "../../../components/admin-header";
 import SongThumbnail from "../../../components/song-thumbnail";
-import AutoPlayDelay from "../../../components/auto-play-delay";
+import QueueSettingsCard from "../../../components/queue-settings-card";
 import { useQueueSettings } from "../../../lib/use-queue-settings";
 import { fetchQueueFinished } from "../../../lib/use-playlist";
-import { steerYouTubeWindow } from "../../../lib/youtube-window";
+import { fromSong, steerYouTubeWindow } from "../../../lib/youtube-window";
 import { formatLength, totalLength } from "../../../lib/queue-time";
 import shared from "../admin.module.css";
 import styles from "./page.module.css";
 import { getErrorMessage, statusMessage } from "../../../lib/api-error";
-
-const subscribeToHydration = () => () => {};
-const getHydratedSnapshot = () => true;
-const getServerSnapshot = () => false;
 
 // A past session in the restore menu, e.g. "Oct 18, 1:51 AM · 4 songs (1 sung) · on "seasons"".
 function describeSession(session) {
@@ -68,7 +64,6 @@ export default function AdminPlaylist() {
     const [draggedId, setDraggedId] = useState(null);
     const [targetPositions, setTargetPositions] = useState({});
     const queue = useQueueSettings();
-    const hydrated = useSyncExternalStore(subscribeToHydration, getHydratedSnapshot, getServerSnapshot);
     // True once playback has run past the last song (playback.song is then that song).
     const [finished, setFinished] = useState(false);
 
@@ -175,7 +170,7 @@ export default function AdminPlaylist() {
             const response = await adminFetch(`${BACKEND_URI}/playlist/jump`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ order_num: song.order_num }),
+                body: JSON.stringify({ p_id: song.p_id }),
             });
             const result = await response.json().catch(() => null);
             if (!response.ok) {
@@ -204,10 +199,13 @@ export default function AdminPlaylist() {
         const targetIndex = Number(targetPosition) - 1;
         const song = songs.find((entry) => entry.p_id === songId);
         if (!song || !Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= songs.length) return;
+        const target = songs[targetIndex];
+        if (target.p_id === song.p_id) return;
+        // By p_id, so the two songs shown are swapped even if the queue changed meanwhile.
         updatePlaylist("/playlist/swap", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ original: song.order_num, swap: targetIndex }),
+            body: JSON.stringify({ p_id: song.p_id, swap_p_id: target.p_id }),
         });
     }
 
@@ -258,42 +256,6 @@ export default function AdminPlaylist() {
         setTargetPositions((current) => ({ ...current, [songId]: value }));
     }
 
-    async function toggleQueue() {
-        setError("");
-        try {
-            await queue.setOpen(!queue.open);
-        } catch (requestError) {
-            setError(requestError.message);
-        }
-    }
-
-    async function togglePauseBeforeSongs() {
-        setError("");
-        try {
-            await queue.setPauseBeforeSongs(!queue.pause_before_songs);
-        } catch (requestError) {
-            setError(requestError.message);
-        }
-    }
-
-    async function toggleAutoPlay() {
-        setError("");
-        try {
-            await queue.setAutoPlay(!queue.auto_play);
-        } catch (requestError) {
-            setError(requestError.message);
-        }
-    }
-
-    async function saveAutoPlaySeconds(seconds) {
-        setError("");
-        try {
-            await queue.setAutoPlaySeconds(seconds);
-        } catch (requestError) {
-            setError(requestError.message);
-        }
-    }
-
     // Time left counts the song playing now and everything after it.
     const currentIndex = songs.findIndex((song) => song.p_id === playback.song?.p_id);
     const remaining = currentIndex >= 0 ? songs.slice(currentIndex + (finished ? 1 : 0)) : songs;
@@ -331,60 +293,6 @@ export default function AdminPlaylist() {
                             <dd>{formatLength(totalLength(songs))}</dd>
                         </div>
                     </dl>
-                    <button
-                        className={`${styles.switch} ${queue.open ? styles.switchOn : ""}`}
-                        type="button"
-                        role="switch"
-                        aria-checked={queue.open}
-                        onClick={toggleQueue}
-                        disabled={hydrated ? !queue.loaded : undefined}
-                    >
-                        <span className={styles.switchTrack} aria-hidden="true">
-                            <span className={styles.switchThumb} />
-                        </span>
-                        {queue.open ? "Taking songs" : "Queue closed"}
-                    </button>
-                    <div className={styles.pauseGroup}>
-                        <button
-                            className={`${styles.switch} ${styles.switchPlain} ${queue.pause_before_songs ? styles.switchOn : ""}`}
-                            type="button"
-                            role="switch"
-                            aria-checked={queue.pause_before_songs}
-                            onClick={togglePauseBeforeSongs}
-                            disabled={hydrated ? !queue.loaded : undefined}
-                        >
-                            <span className={styles.switchTrack} aria-hidden="true">
-                                <span className={styles.switchThumb} />
-                            </span>
-                            <span className={styles.switchText}>
-                                Start each song paused
-                                <small>New songs wait at the start until you press Play</small>
-                            </span>
-                        </button>
-                        <div className={styles.autoPlayRow}>
-                            <button
-                                className={`${styles.switch} ${styles.switchPlain} ${queue.pause_before_songs && queue.auto_play ? styles.switchOn : ""}`}
-                                type="button"
-                                role="switch"
-                                aria-checked={queue.pause_before_songs && queue.auto_play}
-                                onClick={toggleAutoPlay}
-                                disabled={!queue.pause_before_songs || !queue.loaded}
-                            >
-                                <span className={styles.switchTrack} aria-hidden="true">
-                                    <span className={styles.switchThumb} />
-                                </span>
-                                <span className={styles.switchText}>
-                                    Auto-play after a delay
-                                    <small>Songs start paused, then play automatically after the set delay. Pressing Play or Pause stops the countdown.</small>
-                                </span>
-                            </button>
-                            <AutoPlayDelay
-                                seconds={queue.auto_play_seconds}
-                                disabled={!queue.pause_before_songs || !queue.auto_play || !queue.loaded}
-                                onSave={saveAutoPlaySeconds}
-                            />
-                        </div>
-                    </div>
                 </div>
 
                 <div className={`${styles.controls} ${playback.playing ? styles.isPlaying : ""}`}>
@@ -399,13 +307,15 @@ export default function AdminPlaylist() {
                         )}
                     </div>
                     <div className={styles.controlButtons}>
-                        <button type="button" onClick={() => control("back")} aria-label="Previous song">Back</button>
-                        <button className={styles.playButton} type="button" onClick={() => control("play_pause")}>
+                        <button type="button" onClick={() => control(fromSong("back", playback.song?.p_id))} aria-label="Previous song">Back</button>
+                        <button className={styles.playButton} type="button" onClick={() => control(playback.playing ? "pause" : "play")}>
                             {playback.playing ? "Pause" : "Play"}
                         </button>
-                        <button type="button" onClick={() => control("skip")} aria-label="Next song">Skip</button>
+                        <button type="button" onClick={() => control(fromSong("skip", playback.song?.p_id))} aria-label="Next song">Skip</button>
                     </div>
                 </div>
+
+                <QueueSettingsCard className={styles.settingsCard} queue={queue} onError={setError} />
 
                 {error && <p className={shared.error} role="alert">{error}</p>}
                 {songs.filter((song) => song.is_too_long).map((song) => (

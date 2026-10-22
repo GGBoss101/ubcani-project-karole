@@ -5,18 +5,20 @@ import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
 import { statusMessage } from "../../../lib/api-error";
 import { fetchQueueFinished } from "../../../lib/use-playlist";
-import { detectExtension, extensionAdvancesQueue } from "../../../lib/youtube-window";
+import { detectExtension, extensionAdvancesQueue, fromSong } from "../../../lib/youtube-window";
 import { startTicker } from "../../../lib/background-ticker";
 import { useQueueSettings } from "../../../lib/use-queue-settings";
 import StreamPlayer from "./stream-player";
 import WindowPlayer from "./window-player";
+import RemotePlayer from "./remote-player";
 import styles from "./page.module.css";
 
 export default function AdminView() {
     const [playback, setPlayback] = useState({ playing: false, song: null });
     const [error, setError] = useState("");
     // "window" when the Karole YouTube Controller extension is installed (songs play in a
-    // real YouTube window), "stream" for the built-in player, null while checking.
+    // real YouTube window), "stream" for the built-in player, "remote" for a phone or tablet
+    // steering the laptop's screen without showing the video, null while checking.
     const [mode, setMode] = useState(null);
     const [extensionVersion, setExtensionVersion] = useState(null);
     // Goes up with every button press. A status check that was already on its way when a button
@@ -29,7 +31,9 @@ export default function AdminView() {
     useEffect(() => {
         detectExtension().then((version) => {
             setExtensionVersion(version);
-            setMode(version ? "window" : "stream");
+            // A phone or tablet can't open the YouTube window, so it starts as a remote.
+            const touch = window.matchMedia?.("(pointer: coarse)").matches;
+            setMode(version ? "window" : touch ? "remote" : "stream");
         });
     }, []);
 
@@ -75,9 +79,9 @@ export default function AdminView() {
     const control = useCallback((path) => {
         const sequence = ++controlSequence.current;
         controlCount.current += 1;
-        if (path === "play_pause") {
+        if (path === "play" || path === "pause") {
             // Play/pause shows on screen straight away instead of after the backend answers.
-            setPlayback((current) => ({ ...current, playing: !current.playing }));
+            setPlayback((current) => ({ ...current, playing: path === "play" }));
         }
         const sendControl = async () => {
             try {
@@ -89,7 +93,7 @@ export default function AdminView() {
                 if (!response.ok) {
                     throw new Error(nextPlayback?.detail || statusMessage(response.status));
                 }
-                if (path === "play_pause") {
+                if (path === "play" || path === "pause") {
                     setPlayback((current) => ({ ...current, playing: nextPlayback }));
                 } else {
                     setPlayback(nextPlayback);
@@ -104,7 +108,11 @@ export default function AdminView() {
         return request;
     }, []);
 
-    const skip = useCallback(() => control("skip"), [control]);
+    // Skip and Back name the song they were pressed on (see fromSong).
+    const songPId = playback.song?.p_id;
+    const skip = useCallback(() => control(fromSong("skip", songPId)), [control, songPId]);
+    const back = () => control(fromSong("back", songPId));
+    const playPause = () => control(playback.playing ? "pause" : "play");
     const queue = useQueueSettings();
 
     async function togglePauseBeforeSongs() {
@@ -132,6 +140,24 @@ export default function AdminView() {
     }
     const song = playback.song;
 
+    if (mode === "remote") {
+        return (
+            <main className={styles.remotePage}>
+                <RemotePlayer
+                    song={song}
+                    playing={playback.playing}
+                    queue={queue}
+                    onError={setError}
+                    onPlayPause={playPause}
+                    onBack={back}
+                    onSkip={skip}
+                    onPlayHere={() => setMode("stream")}
+                />
+                {error && <p className={styles.remoteError} role="alert">{error}</p>}
+            </main>
+        );
+    }
+
     // With the extension, this page is the remote and all its controls live in one panel.
     if (mode === "window") {
         return (
@@ -148,8 +174,8 @@ export default function AdminView() {
                     onToggleAutoPlay={toggleAutoPlay}
                     autoPlaySeconds={queue.auto_play_seconds}
                     onSaveAutoPlaySeconds={saveAutoPlaySeconds}
-                    onPlayPause={() => control("play_pause")}
-                    onBack={() => control("back")}
+                    onPlayPause={playPause}
+                    onBack={back}
                     onSkip={skip}
                 />
                 {error && <p className={styles.remoteError} role="alert">{error}</p>}
@@ -184,11 +210,14 @@ export default function AdminView() {
                 {error && <p className={styles.error} role="alert">{error}</p>}
             </section>
             <footer className={`${styles.controls} ${playback.playing && song ? styles.playing : ""}`}>
-                <button type="button" onClick={() => control("back")} aria-label="Previous song">Back</button>
-                <button className={styles.playButton} type="button" onClick={() => control("play_pause")} aria-label={playback.playing ? "Pause" : "Play"}>
+                <button type="button" onClick={back} aria-label="Previous song">Back</button>
+                <button className={styles.playButton} type="button" onClick={playPause} aria-label={playback.playing ? "Pause" : "Play"}>
                     {playback.playing ? "Pause" : "Play"}
                 </button>
                 <button type="button" onClick={skip} aria-label="Next song">Skip</button>
+                {mode === "stream" && (
+                    <button type="button" onClick={() => setMode("remote")}>Use as remote</button>
+                )}
             </footer>
         </main>
     );

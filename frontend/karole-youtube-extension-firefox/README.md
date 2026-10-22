@@ -51,3 +51,7 @@ Since 1.6.2, songs that should start paused open already stopped and silent; see
 Since 1.6.3 such a song isn't allowed to start at all, so it sits at 0:00 with no sound or movement.
 Since 1.7.0 it can also play by itself, with "Auto-play after a delay" on and its seconds set on the
 site (1.7.1); pressing Play or Pause during the countdown cancels it.
+Since 1.7.2 the window follows the backend by itself, so the queue can be run from a phone with no
+Karole page awake on this computer.
+Since 1.7.3 its auto-play and its move to the next song can't clash with presses from a phone at the
+same moment.

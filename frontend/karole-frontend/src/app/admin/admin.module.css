@@ -156,6 +156,12 @@
   transition: background 0.15s, color 0.15s;
 }
 
+@media (pointer: coarse) {
+  .flushButton {
+    min-height: 2.75rem;
+  }
+}
+
 .flushButton:hover {
   background: var(--danger);
   color: var(--navy);

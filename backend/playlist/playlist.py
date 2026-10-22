@@ -252,6 +252,10 @@ async def add_song(body: PlaylistInput):
     async with queue_settings_lock:
         if not await is_queue_open():
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Queue is closed")
+        # Checked again just before inserting: two people adding the same video at once both
+        # pass the check above while YouTube is looked up.
+        if playlist_store.find_song_by_url(body.service, body.url_id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Song exists in playlist")
         priority_num = playlist_store.find_priority_for_name(playlist_entry["name_id"]) + 1
         playlist_store.add_song(playlist_entry, priority_num)
     return playlist_entry
@@ -346,36 +350,54 @@ async def playback_stream(start: float = 0):
 
     return StreamingResponse(stream(), media_type="video/mp4")
 
+# A toggle: two presses at once undo each other. The pages use /play and /pause instead.
 @router.post("/play_pause", dependencies=[Depends(require_admin)])
 async def play_pause() -> bool:
     return playlist_store.play_pause()
 
+# Play or Pause as pressed: pressing Play on two phones at once still leaves the song playing.
+@router.post("/play", dependencies=[Depends(require_admin)])
+async def play() -> bool:
+    return playlist_store.set_playing(True)
+
+@router.post("/pause", dependencies=[Depends(require_admin)])
+async def pause() -> bool:
+    return playlist_store.set_playing(False)
+
+# Skip and Back can say which song they were pressed on (from_p_id). If the queue has already
+# moved off it (someone else pressed first), nothing happens and the current state comes back,
+# so two people skipping the same song skip one song, not two.
 @router.post("/skip", dependencies=[Depends(require_admin)])
-async def skip():
+async def skip(from_p_id: int | None = None):
     pause_before_songs = (await read_queue_settings())["pause_before_songs"]
     before = current_p_id()
-    playlist_store.skip()
-    hold_new_song(before, pause_before_songs)
+    if from_p_id is None or from_p_id == before:
+        playlist_store.skip()
+        hold_new_song(before, pause_before_songs)
     return playlist_store.playback_state()
 
 @router.post("/back", dependencies=[Depends(require_admin)])
-async def back():
+async def back(from_p_id: int | None = None):
     pause_before_songs = (await read_queue_settings())["pause_before_songs"]
     before = current_p_id()
-    playlist_store.back()
-    hold_new_song(before, pause_before_songs)
+    if from_p_id is None or from_p_id == before:
+        playlist_store.back()
+        hold_new_song(before, pause_before_songs)
     return playlist_store.playback_state()
 
 @router.post("/jump", dependencies=[Depends(require_admin)])
 async def jump(body: PlaylistJump):
-    if not (0 <= body.order_num < len(playlist_store.songs)):
+    pause_before_songs = (await read_queue_settings())["pause_before_songs"]
+    # Where the song is now, worked out after the await above, so a change made meanwhile by
+    # someone else can't make it point at another song or past the end.
+    index = playlist_store.find_index(body.p_id) if body.p_id is not None else body.order_num
+    if index is None or not (0 <= index < len(playlist_store.songs)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Playlist entry not found",
         )
-    pause_before_songs = (await read_queue_settings())["pause_before_songs"]
     before = current_p_id()
-    playlist_store.jump(body.order_num)
+    playlist_store.jump(index)
     hold_new_song(before, pause_before_songs)
     return playlist_store.playback_state()
 
@@ -462,6 +484,12 @@ async def restore(line: int) -> list[PlaylistEntry]:
     # Point the songs at today's names, adding any that are missing; existing names stay as they
     # are, and the queue comes back in its saved order.
     await name.relink_restored_songs(songs)
+    # Checked again: someone may have added a song, or restored, while this one was waiting.
+    if playlist_store.songs:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The playlist still has songs. Flush it first, then restore the session.",
+        )
     playlist_store.restore(songs, snapshot.get("current_song_p_id"), bool(snapshot.get("finished")))
     return playlist_store.songs
 
@@ -477,18 +505,23 @@ async def keep(playlist_id: int) -> PlaylistEntry:
 
 @router.post("/swap", dependencies=[Depends(require_admin)])
 async def swap(body: PlaylistSwap) -> list[PlaylistEntry]:
-    if body.original == body.swap:
+    by_id = body.p_id is not None and body.swap_p_id is not None
+    first, second = (body.p_id, body.swap_p_id) if by_id else (body.original, body.swap)
+    if first == second:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The songs must have different order numbers",
+            detail="The songs must be different",
         )
 
-    if not playlist_store.swap_songs(body.original, body.swap):
+    swapped = playlist_store.swap_songs_by_id(first, second) if by_id else playlist_store.swap_songs(first, second)
+    if not swapped:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="One or both playlist entries were not found",
         )
-    return [playlist_store.songs[body.swap], playlist_store.songs[body.original]]
+    if by_id:
+        return [playlist_store.songs[playlist_store.find_index(first)], playlist_store.songs[playlist_store.find_index(second)]]
+    return [playlist_store.songs[second], playlist_store.songs[first]]
 
 @router.post("/move", dependencies=[Depends(require_admin)])
 async def move(body: PlaylistMove) -> PlaylistEntry:
