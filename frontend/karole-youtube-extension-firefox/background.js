@@ -86,8 +86,9 @@ async function loadVideo(videoId, playing, start, { pId = null, onlyIfOpen = fal
         const { desired, needsFreshPage } = await browser.storage.session.get(["desired", "needsFreshPage"]);
         if (!needsFreshPage && desired?.pId === pId && videoInUrl(openTab.url) === videoId) {
             if (desired.playing !== playing) {
-                await browser.storage.session.set({ desired: { ...desired, playing } });
-                await tellYouTube({ type: playing ? "play" : "pause" });
+                // A real Play or Pause, so the song no longer plays by itself (see autoPlay).
+                await browser.storage.session.set({ desired: { ...desired, playing, autoPlayCancelled: true } });
+                await tellYouTube({ type: playing ? "play" : "pause", cancelAutoPlay: true });
             }
             return true;
         }
@@ -116,6 +117,42 @@ async function fromBackend(path, options = {}) {
     const response = await fetch(`${siteOrigin}/backend${path}`, { ...options, credentials: "include", cache: "no-store" });
     if (!response.ok) throw new Error(`${path} answered ${response.status}`);
     return response.json();
+}
+
+// How many seconds a song held at the start waits before playing by itself ("Auto-play after a
+// delay" on the site), or 0 to wait for Play: also while that or "Start each song paused" is off.
+async function autoPlayDelay() {
+    try {
+        const settings = await fromBackend("/playlist/queue-settings");
+        return settings.pause_before_songs && settings.auto_play && settings.auto_play_seconds > 0 ? settings.auto_play_seconds : 0;
+    } catch {
+        return 0;
+    }
+}
+
+// The YouTube window's countdown for the held song `pId` ran out. Plays it the way the site's Play
+// button does, but only if nothing changed meanwhile: it's still the song, still paused, nobody
+// pressed Play or Pause for it, and the delay is still set.
+async function autoPlay(pId) {
+    const { desired } = await getState();
+    const skip = (why) => console.log(`Karole auto-play: skipped song ${pId}, ${why}`);
+    if (desired?.pId !== pId) return skip(`the window has moved on to song ${desired?.pId}`);
+    if (desired.playing) return skip("it is already playing");
+    if (desired.autoPlayCancelled) return skip("Play or Pause was pressed during the countdown");
+    try {
+        if (!(await autoPlayDelay())) return skip("auto-play or the pause switch is off now");
+        const current = await fromBackend("/playlist/current-play");
+        if (current.song?.p_id !== pId) return skip(`the backend is on song ${current.song?.p_id}`);
+        if (current.playing) return skip("the backend says it is already playing");
+        const playing = await fromBackend("/playlist/play_pause", { method: "POST" });
+        console.log(`Karole auto-play: pressed Play for song ${pId}, the backend answered playing=${playing}`);
+        if (playing !== true) return;
+        await browser.storage.session.set({ desired: { ...desired, playing: true } });
+        await tellYouTube({ type: "play" });
+    } catch (error) {
+        // The backend couldn't be reached; the song waits for Play as usual.
+        skip(`the backend couldn't be reached (${error.message})`);
+    }
 }
 
 // The song `pId` finished in the YouTube window: move the queue on and play what comes next.
@@ -159,10 +196,16 @@ async function fromSite(message, tab, senderUrl) {
             };
         case "play":
         case "pause": {
+            const playing = message.type === "play";
+            // Only a real change cancels the song's auto-play countdown: the player page also
+            // repeats the current state, say "pause" right after a held song is sent.
+            const cancelAutoPlay = Boolean(state.desired) && state.desired.playing !== playing;
             if (state.desired) {
-                await browser.storage.session.set({ desired: { ...state.desired, playing: message.type === "play" } });
+                await browser.storage.session.set({
+                    desired: { ...state.desired, playing, autoPlayCancelled: state.desired.autoPlayCancelled || cancelAutoPlay },
+                });
             }
-            return { ok: await tellYouTube({ type: message.type }) };
+            return { ok: await tellYouTube({ type: message.type, cancelAutoPlay }) };
         }
         case "seek":
             return { ok: await tellYouTube({ type: "seek", time: Number(message.time) || 0 }) };
@@ -210,8 +253,14 @@ async function fromYouTube(message, tab) {
     const { youtubeTabId, desired, settings } = await getState();
     const controlled = tab.id === youtubeTabId;
     if (message.type === "hello") {
-        // Only the window opened for Karole is taken over; other YouTube tabs are left alone.
-        return { controlled, desired: controlled ? desired : null, settings: controlled ? settings : null };
+        // Only the window opened for Karole is taken over; other YouTube tabs are left alone. A
+        // song held at the start also gets its auto-play delay, for the window's countdown.
+        const autoPlaySeconds = controlled && desired && !desired.playing ? await autoPlayDelay() : 0;
+        return { controlled, desired: controlled ? desired : null, settings: controlled ? settings : null, autoPlaySeconds };
+    }
+    if (controlled && message.type === "auto-play") {
+        await autoPlay(message.pId);
+        return { ok: true };
     }
     if (controlled && message.type === "status") {
         // The page can't see its own window, so whether it's full screen is added here.

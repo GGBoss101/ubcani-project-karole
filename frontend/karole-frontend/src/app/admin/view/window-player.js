@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { listenToExtension, sendToExtension, videoIdOf } from "../../../lib/youtube-window";
 import { formatLength } from "../../../lib/queue-time";
+import AutoPlayDelay from "../../../components/auto-play-delay";
 import styles from "./page.module.css";
 
 const STATE_LABELS = {
@@ -30,6 +31,10 @@ export default function WindowPlayer({
     pauseBeforeSongs,
     settingsLoaded,
     onTogglePauseBeforeSongs,
+    autoPlay,
+    onToggleAutoPlay,
+    autoPlaySeconds,
+    onSaveAutoPlaySeconds,
     onPlayPause,
     onBack,
     onSkip,
@@ -318,18 +323,40 @@ export default function WindowPlayer({
 
                 <div className={styles.setting}>
                     <span className={styles.settingLabel}>Queue</span>
-                    <div className={styles.settingRow}>
-                        <button
-                            type="button"
-                            role="switch"
-                            className={`${styles.iconButton} ${pauseBeforeSongs ? styles.toggleOn : ""}`}
-                            onClick={onTogglePauseBeforeSongs}
-                            aria-checked={Boolean(pauseBeforeSongs)}
-                            disabled={!settingsLoaded}
-                        >
-                            Start each song paused: {pauseBeforeSongs ? "on" : "off"}
-                        </button>
-                        <span className={styles.settingHint}>New songs wait at the start until you press Play</span>
+                    <div className={styles.settingStack}>
+                        <div className={styles.settingRow}>
+                            <button
+                                type="button"
+                                role="switch"
+                                className={`${styles.iconButton} ${pauseBeforeSongs ? styles.toggleOn : ""}`}
+                                onClick={onTogglePauseBeforeSongs}
+                                aria-checked={Boolean(pauseBeforeSongs)}
+                                disabled={!settingsLoaded}
+                            >
+                                Start each song paused: {pauseBeforeSongs ? "on" : "off"}
+                            </button>
+                            <span className={styles.settingHint}>New songs wait at the start until you press Play</span>
+                        </div>
+                        <div className={styles.settingRow}>
+                            <button
+                                type="button"
+                                role="switch"
+                                className={`${styles.iconButton} ${pauseBeforeSongs && autoPlay ? styles.toggleOn : ""}`}
+                                onClick={onToggleAutoPlay}
+                                aria-checked={Boolean(pauseBeforeSongs && autoPlay)}
+                                disabled={!pauseBeforeSongs || !settingsLoaded}
+                            >
+                                Auto-play after a delay: {pauseBeforeSongs && autoPlay ? "on" : "off"}
+                            </button>
+                            <AutoPlayDelay
+                                seconds={autoPlaySeconds}
+                                disabled={!pauseBeforeSongs || !autoPlay || !settingsLoaded}
+                                onSave={onSaveAutoPlaySeconds}
+                            />
+                            <span className={styles.settingHint}>
+                                Songs start paused, then play automatically after the set delay. Pressing Play or Pause stops the countdown.
+                            </span>
+                        </div>
                     </div>
                 </div>
 

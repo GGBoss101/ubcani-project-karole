@@ -63,6 +63,10 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
   queue switch. When on, every song that becomes the current one (the last one ended, or Skip,
   Back, a jump or deleting the playing song moved to it) waits at the start until Play is pressed.
   The YouTube window opens it already stopped, so no sound plays (extension 1.6.2).
+  Under it, once that switch is on, "Auto-play after a delay" plays the held song by itself the
+  number of seconds in the box beside it after it's ready (1 to 300, 10 by default). Pressing Play or
+  Pause during the countdown cancels it for that song. The countdown runs in the YouTube window, so
+  it needs extension 1.7.1.
 - **Song names** may use any letters, numbers, punctuation and symbols, up to 70 characters
   (no line breaks). People's names stay letters, numbers, spaces and `_`.
 - **Queue switch.** The backend stores `{ "open": true|false }` in MongoDB and checks it

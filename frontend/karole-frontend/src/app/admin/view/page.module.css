@@ -397,6 +397,13 @@
   color: var(--aqua);
 }
 
+/* Two rows in one setting: "Start each song paused", then "Auto-play after a delay" under it. */
+.settingStack {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .settingHint {
   color: var(--text-muted);
   font-size: 0.8125rem;

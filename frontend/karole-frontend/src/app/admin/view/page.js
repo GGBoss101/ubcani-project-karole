@@ -114,6 +114,22 @@ export default function AdminView() {
             setError(requestError.message);
         }
     }
+
+    async function toggleAutoPlay() {
+        try {
+            await queue.setAutoPlay(!queue.auto_play);
+        } catch (requestError) {
+            setError(requestError.message);
+        }
+    }
+
+    async function saveAutoPlaySeconds(seconds) {
+        try {
+            await queue.setAutoPlaySeconds(seconds);
+        } catch (requestError) {
+            setError(requestError.message);
+        }
+    }
     const song = playback.song;
 
     // With the extension, this page is the remote and all its controls live in one panel.
@@ -128,6 +144,10 @@ export default function AdminView() {
                     pauseBeforeSongs={queue.pause_before_songs}
                     settingsLoaded={queue.loaded}
                     onTogglePauseBeforeSongs={togglePauseBeforeSongs}
+                    autoPlay={queue.auto_play}
+                    onToggleAutoPlay={toggleAutoPlay}
+                    autoPlaySeconds={queue.auto_play_seconds}
+                    onSaveAutoPlaySeconds={saveAutoPlaySeconds}
                     onPlayPause={() => control("play_pause")}
                     onBack={() => control("back")}
                     onSkip={skip}

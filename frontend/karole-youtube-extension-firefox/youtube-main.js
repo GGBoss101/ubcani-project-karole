@@ -46,10 +46,12 @@ HTMLMediaElement.prototype.play = function play(...args) {
 };
 
 // Backup, should a start get past the above: stop the video the instant it starts, in the capture
-// phase of its "play" event, muted until that pause has taken effect.
-document.addEventListener("play", (event) => {
+// phase of its "play" event, muted until that pause has taken effect. After an ad YouTube switches
+// the still-playing video over to the song without calling play() or firing "play", so "playing"
+// and "timeupdate" (a few times a second) catch that.
+function stopHeldSong(event) {
     const video = event.target;
-    if (!isHeldSong(video)) return;
+    if (!isHeldSong(video) || video.paused) return;
     const wasMuted = video.muted;
     video.muted = true;
     video.pause();
@@ -57,7 +59,8 @@ document.addEventListener("play", (event) => {
     video.addEventListener("pause", () => {
         video.muted = wasMuted;
     }, { once: true });
-}, true);
+}
+for (const type of ["play", "playing", "timeupdate"]) document.addEventListener(type, stopHeldSong, true);
 
 function shownCaption(element) {
     try {

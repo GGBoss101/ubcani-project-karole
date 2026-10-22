@@ -16,6 +16,13 @@ let rateAppliedFor = null; // which video the speed was last applied to
 let player = null; // latest report from youtube-main.js
 let lastReport = "";
 let lastReportAt = 0;
+// "Auto-play after": a song held at the start plays by itself this many seconds after it's sitting
+// ready at 0:00 (0 waits for Play). The countdown runs here rather than in the background, which
+// the browser may put to sleep. It runs once per song (by its place in the queue, pId), and any
+// Play or Pause pressed for the song cancels it.
+let autoPlaySeconds = 0;
+let countdownFor = null; // the pId whose countdown has started or been cancelled
+let countdownTimer = 0;
 
 const currentVideoId = () => new URLSearchParams(window.location.search).get("v");
 
@@ -213,11 +220,37 @@ function applyDesired(current) {
     command(desired.playing ? "play" : "pause");
 }
 
+function startCountdown(current) {
+    if (!desired || desired.playing || desired.pId == null || !(autoPlaySeconds > 0) || countdownFor === desired.pId) return;
+    // Ready: the song itself (not an ad before it) is loaded and still. Its length isn't waited
+    // for, which YouTube may not report while the song is held.
+    if (!player || current.ad || current.videoId !== desired.videoId) return;
+    if (!["paused", "loading"].includes(current.state)) return;
+    const pId = desired.pId;
+    countdownFor = pId;
+    console.log(`Karole auto-play: countdown started for song ${pId}, ${autoPlaySeconds} seconds`);
+    countdownTimer = window.setTimeout(() => {
+        countdownTimer = 0;
+        console.log(`Karole auto-play: countdown for song ${pId} ran out, asking to press Play`);
+        // The background checks nothing changed meanwhile before pressing Play.
+        chrome.runtime.sendMessage({ from: "youtube", type: "auto-play", pId }).catch(() => {});
+    }, autoPlaySeconds * 1000);
+}
+
+function cancelCountdown(why) {
+    if (countdownTimer) console.log(`Karole auto-play: countdown for song ${countdownFor} cancelled, ${why}`);
+    window.clearTimeout(countdownTimer);
+    countdownTimer = 0;
+    if (desired?.pId != null) countdownFor = desired.pId;
+}
+
 function tick() {
     addKioskStyle();
     showYouTubeControls(settings.showControls);
     turnOffAutoplayNext();
-    applyDesired(status());
+    const current = status();
+    applyDesired(current);
+    startCountdown(current);
     report();
 }
 
@@ -225,7 +258,13 @@ function takeControl(reply) {
     controlled = Boolean(reply?.controlled);
     desired = reply?.desired || desired;
     settings = reply?.settings || settings;
+    if (typeof reply?.autoPlaySeconds === "number") autoPlaySeconds = reply.autoPlaySeconds;
     if (!controlled) return;
+    if (desired && !desired.playing) {
+        console.log(autoPlaySeconds > 0
+            ? `Karole auto-play: song ${desired.pId} is held, plays ${autoPlaySeconds} seconds after it's ready`
+            : `Karole auto-play: song ${desired.pId} is held until Play (auto-play is off)`);
+    }
     addKioskStyle();
     enableCaptionDrag();
     command("start");
@@ -240,6 +279,7 @@ window.addEventListener("message", (event) => {
 chrome.runtime.onMessage.addListener((message) => {
     if (!controlled) return;
     if (message.type === "play" || message.type === "pause") {
+        if (message.type === "play" || message.cancelAutoPlay) cancelCountdown(`${message.type} was pressed`);
         if (desired) desired.playing = message.type === "play";
         command(message.type);
     } else if (message.type === "seek") {

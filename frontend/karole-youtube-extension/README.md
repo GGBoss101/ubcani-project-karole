@@ -114,3 +114,10 @@ loads and stops the video the instant it starts (muted until stopped, so nothing
 Play is pressed on the site. Ads are left to play; the song after them is held the same way.
 Since 1.6.3 the held song isn't allowed to start at all (its `play()` is refused like a blocked
 autoplay), so it sits at 0:00 with no sound or movement; the instant stop above is kept as a backup.
+Since 1.7.0, with "Auto-play after a delay" on (1.7.1) and its seconds set on the site, the window
+counts down once the held song is ready (after any ad), then asks the background to press Play,
+which first checks the backend that it's still the same song and still paused. Pressing Play or
+Pause on the site during the countdown cancels it for that song. Each step is logged in the YouTube
+window's console (and the extension's background console) as "Karole auto-play: ...".
+Since 1.7.1 a held song is also stopped when YouTube moves on to it from an ad, which it does
+without starting the video again.

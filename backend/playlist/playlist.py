@@ -166,11 +166,19 @@ queue_settings_col = client["queue_settings"]
 queue_settings_lock = asyncio.Lock()
 
 
-async def read_queue_settings() -> dict[str, bool]:
+async def read_queue_settings() -> dict[str, bool | int]:
     # open: whether new songs are taken. pause_before_songs: whether each song that becomes the
     # current one (it came next, or Skip, Back, a jump or a delete moved to it) waits for Play.
+    # auto_play: whether such a song then plays by itself, auto_play_seconds after it's ready; the
+    # extension keeps that countdown.
     settings = await queue_settings_col.find_one({"_id": "queue"}) or {}
-    return {"open": settings.get("open", True) is True, "pause_before_songs": settings.get("pause_before_songs") is True}
+    auto_play_seconds = settings.get("auto_play_seconds")
+    return {
+        "open": settings.get("open", True) is True,
+        "pause_before_songs": settings.get("pause_before_songs") is True,
+        "auto_play": settings.get("auto_play") is True,
+        "auto_play_seconds": auto_play_seconds if type(auto_play_seconds) is int and auto_play_seconds > 0 else 10,
+    }
 
 
 def current_p_id() -> int | None:
@@ -249,11 +257,11 @@ async def add_song(body: PlaylistInput):
     return playlist_entry
 
 @router.get("/queue-settings")
-async def get_queue_settings() -> dict[str, bool]:
+async def get_queue_settings() -> dict[str, bool | int]:
     return await read_queue_settings()
 
 @router.post("/queue-settings", dependencies=[Depends(require_admin)])
-async def set_queue_settings(body: QueueSettingsInput) -> dict[str, bool]:
+async def set_queue_settings(body: QueueSettingsInput) -> dict[str, bool | int]:
     changes = body.model_dump(exclude_none=True)
     async with queue_settings_lock:
         if changes:

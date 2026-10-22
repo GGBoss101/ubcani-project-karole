@@ -124,3 +124,6 @@ class QueueSettingsInput(BaseModel):
     # Either or both; a setting left out keeps its value.
     open: bool | None = None
     pause_before_songs: bool | None = None
+    # Whether a held song plays by itself, and after how many seconds.
+    auto_play: bool | None = None
+    auto_play_seconds: int | None = Field(default=None, ge=1, le=300, strict=True)

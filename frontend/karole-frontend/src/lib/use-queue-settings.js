@@ -1,5 +1,6 @@
 // The queue's shared settings, kept by the backend: whether it is accepting new songs (open),
-// and whether each new song waits at the start for Play (pause_before_songs).
+// whether each new song waits at the start for Play (pause_before_songs), and whether such a song
+// then plays by itself (auto_play) after a delay (auto_play_seconds).
 import { useCallback, useEffect, useState } from "react";
 import { BACKEND_URI } from "./config";
 import { adminFetch } from "./admin-auth";
@@ -14,7 +15,7 @@ export async function fetchQueueSettings() {
 }
 
 export function useQueueSettings() {
-    const [settings, setSettings] = useState({ open: true, pause_before_songs: false, loaded: false });
+    const [settings, setSettings] = useState({ open: true, pause_before_songs: false, auto_play: false, auto_play_seconds: 10, loaded: false });
 
     const refresh = useCallback(async () => {
         try {
@@ -46,5 +47,7 @@ export function useQueueSettings() {
         ...settings,
         setOpen: (open) => update({ open }),
         setPauseBeforeSongs: (pause) => update({ pause_before_songs: pause }),
+        setAutoPlay: (autoPlay) => update({ auto_play: autoPlay }),
+        setAutoPlaySeconds: (seconds) => update({ auto_play_seconds: seconds }),
     };
 }

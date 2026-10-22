@@ -5,6 +5,7 @@ import { BACKEND_URI } from "../../../lib/config";
 import { adminFetch } from "../../../lib/admin-auth";
 import AdminHeader from "../../../components/admin-header";
 import SongThumbnail from "../../../components/song-thumbnail";
+import AutoPlayDelay from "../../../components/auto-play-delay";
 import { useQueueSettings } from "../../../lib/use-queue-settings";
 import { fetchQueueFinished } from "../../../lib/use-playlist";
 import { steerYouTubeWindow } from "../../../lib/youtube-window";
@@ -275,6 +276,24 @@ export default function AdminPlaylist() {
         }
     }
 
+    async function toggleAutoPlay() {
+        setError("");
+        try {
+            await queue.setAutoPlay(!queue.auto_play);
+        } catch (requestError) {
+            setError(requestError.message);
+        }
+    }
+
+    async function saveAutoPlaySeconds(seconds) {
+        setError("");
+        try {
+            await queue.setAutoPlaySeconds(seconds);
+        } catch (requestError) {
+            setError(requestError.message);
+        }
+    }
+
     // Time left counts the song playing now and everything after it.
     const currentIndex = songs.findIndex((song) => song.p_id === playback.song?.p_id);
     const remaining = currentIndex >= 0 ? songs.slice(currentIndex + (finished ? 1 : 0)) : songs;
@@ -325,22 +344,47 @@ export default function AdminPlaylist() {
                         </span>
                         {queue.open ? "Taking songs" : "Queue closed"}
                     </button>
-                    <button
-                        className={`${styles.switch} ${styles.switchPlain} ${queue.pause_before_songs ? styles.switchOn : ""}`}
-                        type="button"
-                        role="switch"
-                        aria-checked={queue.pause_before_songs}
-                        onClick={togglePauseBeforeSongs}
-                        disabled={hydrated ? !queue.loaded : undefined}
-                    >
-                        <span className={styles.switchTrack} aria-hidden="true">
-                            <span className={styles.switchThumb} />
-                        </span>
-                        <span className={styles.switchText}>
-                            Start each song paused
-                            <small>New songs wait at the start until you press Play</small>
-                        </span>
-                    </button>
+                    <div className={styles.pauseGroup}>
+                        <button
+                            className={`${styles.switch} ${styles.switchPlain} ${queue.pause_before_songs ? styles.switchOn : ""}`}
+                            type="button"
+                            role="switch"
+                            aria-checked={queue.pause_before_songs}
+                            onClick={togglePauseBeforeSongs}
+                            disabled={hydrated ? !queue.loaded : undefined}
+                        >
+                            <span className={styles.switchTrack} aria-hidden="true">
+                                <span className={styles.switchThumb} />
+                            </span>
+                            <span className={styles.switchText}>
+                                Start each song paused
+                                <small>New songs wait at the start until you press Play</small>
+                            </span>
+                        </button>
+                        <div className={styles.autoPlayRow}>
+                            <button
+                                className={`${styles.switch} ${styles.switchPlain} ${queue.pause_before_songs && queue.auto_play ? styles.switchOn : ""}`}
+                                type="button"
+                                role="switch"
+                                aria-checked={queue.pause_before_songs && queue.auto_play}
+                                onClick={toggleAutoPlay}
+                                disabled={!queue.pause_before_songs || !queue.loaded}
+                            >
+                                <span className={styles.switchTrack} aria-hidden="true">
+                                    <span className={styles.switchThumb} />
+                                </span>
+                                <span className={styles.switchText}>
+                                    Auto-play after a delay
+                                    <small>Songs start paused, then play automatically after the set delay. Pressing Play or Pause stops the countdown.</small>
+                                </span>
+                            </button>
+                            <AutoPlayDelay
+                                seconds={queue.auto_play_seconds}
+                                disabled={!queue.pause_before_songs || !queue.auto_play || !queue.loaded}
+                                onSave={saveAutoPlaySeconds}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <div className={`${styles.controls} ${playback.playing ? styles.isPlaying : ""}`}>
