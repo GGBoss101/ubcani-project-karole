@@ -14,9 +14,9 @@
     "https://www.youtube.com/*",
     "http://localhost/*",
     "http://localhost:3000/*",
-    "https://dhairyas-macbook-pro.tail512d14.ts.net/*",
+    "http://127.0.0.1/*",
     "http://127.0.0.1:3000/*",
-    "http://127.0.0.1/*"
+    "https://karaoke.ubcani.com/*"
   ],
   "background": {
     "scripts": [
@@ -29,9 +29,9 @@
       "matches": [
         "http://localhost/*",
         "http://localhost:3000/*",
-        "https://dhairyas-macbook-pro.tail512d14.ts.net/*",
+        "http://127.0.0.1/*",
         "http://127.0.0.1:3000/*",
-        "http://127.0.0.1/*"
+        "https://karaoke.ubcani.com/*"
       ],
       "js": [
         "site-bridge.js"

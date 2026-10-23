@@ -1,15 +1,24 @@
+import os
+
 import pymongo
+from dotenv import load_dotenv
 from pymongo.errors import (
     DuplicateKeyError,
     OperationFailure,
     ConnectionFailure,
     ServerSelectionTimeoutError
 )
-client = pymongo.AsyncMongoClient("127.0.0.1",27017)["karole"]
 
+load_dotenv()
+
+mongo_uri = os.getenv("MONGODB_URI")
+if not mongo_uri:
+    raise RuntimeError("MONGODB_URI must be set")
+
+client = pymongo.AsyncMongoClient(mongo_uri)["karole"]
 
 try:
-    client_init = pymongo.MongoClient("127.0.0.1",27017)
+    client_init = pymongo.MongoClient(mongo_uri)
     col = client_init["karole"]["name"]
     col.create_index([("name_id",pymongo.DESCENDING)],unique=True)
     col.create_index("name",unique=True)
