@@ -189,6 +189,11 @@ cd frontend/karole-frontend && npm run dev
 
 Then open http://localhost:3000. Admin pages are under `/admin/login`.
 
+The live site is **https://karaoke.ubcani.com**. Its address is listed in `backend/main.py`
+(CORS), `next.config.mjs` (`allowedDevOrigins`) and both extensions' `manifest.json`; a new address
+for the site needs adding in the same places. `src/lib/backend-address.js` tries the backend on the
+same machine first (`http://127.0.0.1:8000`).
+
 | Command | Use |
 | --- | --- |
 | `npm run dev` | Development server with live reload. |
@@ -241,6 +246,49 @@ names are one person in the names list now, that person's next new song counts a
 
 Behind the page: `GET /playlist/sessions` lists the sessions and `POST /playlist/restore?line=N`
 restores the one ending on line N of the log (both need the admin login).
+
+## Running on a server
+
+YouTube is much stricter with servers (cloud hosting) than with a home or campus connection. Adding a
+song looks the video up in this order, moving on when a step fails:
+
+1. **yt-dlp**, reading the video's page (title, length, channel).
+2. **yt-dlp again with a cookies file**, if `YTDLP_COOKIE_FILE` is set (see below).
+3. **YouTube's Data API**, if `YOUTUBE_API_KEY` is set (see below). It's YouTube's official API for
+   servers and isn't bot-blocked. If it says the video doesn't exist, the song isn't added (a
+   mistyped link); if it says the video is age-restricted, the singer gets that message.
+4. **Nothing:** the song is added anyway, with the song name the singer typed as its title and no
+   channel or length. It plays as normal (the YouTube window plays by the video's ID), but it can't
+   be checked for being too long, and the time estimates leave it out (the admin Playlist page
+   shows "+ 1 song of unknown length").
+
+An age-restricted video found by yt-dlp isn't retried. Playback is never affected: the video always
+plays in the YouTube window on the screen's laptop, never through the server.
+
+### A YouTube Data API key
+
+1. In the Google Cloud console (console.cloud.google.com), create a project (any name).
+2. APIs & Services → Library → enable **YouTube Data API v3**.
+3. APIs & Services → Credentials → Create credentials → **API key**. Edit it and, under API
+   restrictions, restrict it to YouTube Data API v3.
+4. In `backend/.env` on the server set `YOUTUBE_API_KEY=` followed by the key, then restart the
+   backend. Never commit it.
+
+It's free: about 10,000 units a day, and each song added through it uses 1 unit.
+
+### A cookies file
+
+If lookups still fail with "Sign in to confirm you're not a bot", give the backend a YouTube
+cookies file, which it uses to retry failed lookups:
+
+1. Make a **throwaway Google account** for this (never anyone's real one: the file gives full
+   access to that account, and YouTube may flag it).
+2. In a private/incognito window, sign in to YouTube with it and play any video once.
+3. Export the cookies for youtube.com in Netscape format with a "cookies.txt" export extension, as
+   `cookies.txt`, then close the private window without signing out.
+4. Copy `cookies.txt` to the server **outside the project folder** (never commit it).
+5. In `backend/.env` set `YTDLP_COOKIE_FILE=/full/path/to/cookies.txt`, then restart the backend.
+6. YouTube rotates these cookies: export a fresh file shortly before each event.
 
 ## Known limits
 

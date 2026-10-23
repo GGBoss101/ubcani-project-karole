@@ -288,6 +288,13 @@ export default function AdminPlaylist() {
     const waitsLeft = remaining.filter((song) => song.p_id !== playback.song?.p_id || currentHeld).length;
     const timeLeftWaits = describeWaits(timeLeft, waitsLeft, queue);
     const wholeQueueWaits = describeWaits(totalLength(songs), songs.length, queue);
+    // Songs added when nothing could look them up have no length, so the totals leave them out.
+    const describeUnknown = (list) => {
+        const count = list.filter((song) => !song.duration).length;
+        return count ? `+ ${count} song${count === 1 ? "" : "s"} of unknown length` : null;
+    };
+    const timeLeftUnknown = describeUnknown(remaining);
+    const wholeQueueUnknown = describeUnknown(songs);
 
     let playbackState = "Nothing is playing";
     if (finished) {
@@ -317,11 +324,13 @@ export default function AdminPlaylist() {
                             <dt>Time left</dt>
                             <dd>{formatLength(timeLeft)}</dd>
                             {timeLeftWaits && <dd className={styles.statNote}>{timeLeftWaits}</dd>}
+                            {timeLeftUnknown && <dd className={styles.statNote}>{timeLeftUnknown}</dd>}
                         </div>
                         <div>
                             <dt>Whole queue</dt>
                             <dd>{formatLength(totalLength(songs))}</dd>
                             {wholeQueueWaits && <dd className={styles.statNote}>{wholeQueueWaits}</dd>}
+                            {wholeQueueUnknown && <dd className={styles.statNote}>{wholeQueueUnknown}</dd>}
                         </div>
                     </dl>
                     {mainScreen && (

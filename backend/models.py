@@ -91,7 +91,8 @@ class PlaylistEntry(BaseModel):
     service: str | None = None
     url: str = Field(max_length=100)
     url_id: str | None = None
-    url_creator: str = Field(max_length=100)
+    # Empty when the video couldn't be looked up at all (see lookup_video in playlist.py).
+    url_creator: str | None = Field(default=None, max_length=100)
     youtube_title: str = Field(max_length=100)
     url_channel_icon: str | None = Field(default=None, max_length=2048)
     # Length in seconds. is_too_long is set when it is over MAX_SONG_LENGTH_SECONDS,

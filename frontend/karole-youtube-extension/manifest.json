@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Karole YouTube Controller",
-  "version": "1.8.0",
+  "version": "1.8.2",
   "description": "Lets the Karole player page open YouTube in its own window and control what plays there.",
   "permissions": [
     "storage"
@@ -15,6 +15,7 @@
         "http://localhost/*",
         "http://localhost:3000/*",
         "https://dhairyas-macbook-pro.tail512d14.ts.net/*",
+        "https://karaoke.ubcani.com/*",
         "http://127.0.0.1:3000/*",
         "http://127.0.0.1/*"
       ],
@@ -48,6 +49,7 @@
     "http://localhost/*",
     "http://localhost:3000/*",
     "https://dhairyas-macbook-pro.tail512d14.ts.net/*",
+        "https://karaoke.ubcani.com/*",
     "http://127.0.0.1:3000/*",
     "http://127.0.0.1/*"
   ]
