@@ -239,6 +239,7 @@ async def main_test() -> None:
     await login_cookie_test()
     await main_screen_test()
     await add_fallback_test()
+    await real_length_test()
     print("\nAll checks passed. Temporary logs were written to", LOG_DIR)
 
 
@@ -379,6 +380,38 @@ async def add_fallback_test() -> None:
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
+
+
+async def real_length_test() -> None:
+    # A song added without a length gets its real one from the YouTube window once it plays.
+    from playlist.playlist_store import read_snapshot, songs_from_snapshot, read_log
+
+    print("Filling in the real length when a song with no length plays")
+    store = fresh_queue(song_count=3)
+    store.songs[0].duration = None
+    store.songs[1].duration = None
+    transport = httpx.ASGITransport(app=main.app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        answer = await client.post("/playlist/position", json={"p_id": 0, "position": 5, "duration": 205})
+        check(answer.json() is True and store.songs[0].duration == 205, "the window's length is saved for the playing song")
+        await client.post("/playlist/position", json={"p_id": 0, "position": 9, "duration": 999})
+        check(store.songs[0].duration == 205, "a known length is never overwritten")
+        await client.post("/playlist/position", json={"p_id": 1, "position": 3, "duration": 150})
+        check(store.songs[1].duration is None, "a report about a song that isn't playing is ignored")
+        await client.post("/playlist/position", json={"p_id": 0, "position": 12})
+        check(store.songs[0].duration == 205, "a report without a length (older extension) changes nothing")
+        check(store.songs[0].is_too_long is False, "a normal length isn't flagged")
+        line = read_log(store.log_path)[-1][0]
+        restored = songs_from_snapshot(read_snapshot(store.log_path, line))
+        check(restored[0].duration == 205, "the session log keeps it, so Restore does too")
+
+        await client.post("/playlist/skip?from_p_id=0")
+        answer = await client.post("/playlist/position", json={"p_id": 1, "position": 1, "duration": 900})
+        check(store.songs[1].duration == 900 and store.songs[1].is_too_long is True,
+              "a real length over the limit is flagged as too long")
+        check(store.current_song.p_id == 1 and store.playing is True, "and it keeps playing")
+        answer = await client.post("/playlist/position", json={"p_id": 1, "position": 1, "duration": 0})
+        check(answer.status_code == 422, "a zero length is refused")
 
 
 class FakeSettingsCollection:

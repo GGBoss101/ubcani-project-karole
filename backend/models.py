@@ -144,6 +144,8 @@ class PlaylistJump(BaseModel):
 class PlaylistPosition(BaseModel):
     p_id: int
     position: float = Field(ge=0)
+    # The song's real length, as the YouTube window sees it (from extension 1.8.3).
+    duration: float | None = Field(default=None, gt=0)
 
 # The device that plays the video (the "main screen"): a random ID its browser made up, and a
 # short label to show admins which one it is, e.g. "Chrome on macOS".

@@ -430,7 +430,7 @@ async def playing_song():
 # about a song that's no longer current is ignored.
 @router.post("/position", dependencies=[Depends(require_admin)])
 async def report_position(body: PlaylistPosition) -> bool:
-    return playlist_store.set_position(body.p_id, body.position)
+    return playlist_store.set_position(body.p_id, body.position, body.duration, max_song_length_seconds)
 
 @router.get("/playback-source", dependencies=[Depends(require_admin)])
 async def playback_source() -> dict[str, str | None]:

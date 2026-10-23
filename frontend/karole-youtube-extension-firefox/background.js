@@ -385,7 +385,12 @@ async function fromYouTube(message, tab) {
             await fromBackend("/playlist/position", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ p_id: message.pId, position: Math.max(0, message.time) }),
+                body: JSON.stringify({
+                    p_id: message.pId,
+                    position: Math.max(0, message.time),
+                    // The real length, for a song added without one (not for live streams, which have none).
+                    ...(Number.isFinite(message.duration) && message.duration > 0 ? { duration: message.duration } : {}),
+                }),
             }).catch(() => {});
         }
         return { ok: true };

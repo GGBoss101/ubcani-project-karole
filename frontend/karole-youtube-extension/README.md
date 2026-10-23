@@ -159,3 +159,7 @@ steer it (their loads, Play/Pause and other commands are ignored) while the driv
 open. To move the window to the other copy on purpose, press "Open/Reopen YouTube window" on that
 copy's player page; closing the driving page also lets the other one take over. Best during an
 event: keep only one copy of the site open on the screen's laptop.
+
+Since 1.8.3 the position reports also carry the song's real length. A song added without one (when
+nothing could look the video up) gets it filled in on the site as soon as it plays, so the time
+totals stop estimating it.

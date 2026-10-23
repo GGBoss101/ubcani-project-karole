@@ -66,3 +66,4 @@ Since 1.8.1 it also works on the live site, https://karaoke.ubcani.com.
 Since 1.8.2 the window follows only the copy of the site whose player page drives it, so a second
 copy open in another tab (say localhost and the hosted site) can't make it pause or switch songs.
 Press "Open/Reopen YouTube window" on the other copy's player page to move it there on purpose.
+Since 1.8.3 it also reports a playing song's real length, filling it in for songs added without one.

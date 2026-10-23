@@ -110,8 +110,11 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
   While one is still ahead or playing, the totals are estimates and say so: on the admin Playlist
   page a "~" before the time and "estimate: 1 song's length unknown, counted as 3 min" under it; on
   the public pages "(some lengths estimated)". A playing one counts down from 3:00 to 0, never
-  below. Once it has been sung or skipped, the totals are exact again. The song itself keeps an
-  unknown length (the backend never guesses one), so it still skips the too-long check.
+  below. Once it has been sung or skipped, the totals are exact again. The backend never guesses a
+  length: the song keeps an unknown one until it plays. Then (extension 1.8.3) the YouTube window
+  reports the real length, the backend saves it (also in the session log, so Restore keeps it) and
+  every timer uses it from then on; if it's over the limit, the song is flagged as too long like any
+  other, but keeps playing. A known length is never changed this way.
 - **Time left and the waits.** On the admin Playlist page, "Time left" counts down every second
   while a song plays and stops while it's paused: the backend keeps the current song's position in
   memory (`position`, `position_at`, `server_time` in `/playlist/current-play`), and the YouTube
