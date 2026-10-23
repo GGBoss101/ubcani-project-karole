@@ -105,6 +105,13 @@ scripts/sample-backend.mjs      Stand-in backend with fake data, for working wit
   on it's a range: the low end if Play is always pressed straight away, the high end with every
   auto-play delay still to come. Without auto-play it adds "plus short pauses". Ads and the moments
   while a song loads aren't counted, so it stays "about".
+- **Songs with no known length** (added when nothing could look the video up, or live streams)
+  count as 3 minutes (`UNKNOWN_SONG_SECONDS` in `src/lib/queue-time.js`) in every time total.
+  While one is still ahead or playing, the totals are estimates and say so: on the admin Playlist
+  page a "~" before the time and "estimate: 1 song's length unknown, counted as 3 min" under it; on
+  the public pages "(some lengths estimated)". A playing one counts down from 3:00 to 0, never
+  below. Once it has been sung or skipped, the totals are exact again. The song itself keeps an
+  unknown length (the backend never guesses one), so it still skips the too-long check.
 - **Time left and the waits.** On the admin Playlist page, "Time left" counts down every second
   while a song plays and stops while it's paused: the backend keeps the current song's position in
   memory (`position`, `position_at`, `server_time` in `/playlist/current-play`), and the YouTube
@@ -259,8 +266,7 @@ song looks the video up in this order, moving on when a step fails:
    mistyped link); if it says the video is age-restricted, the singer gets that message.
 4. **Nothing:** the song is added anyway, with the song name the singer typed as its title and no
    channel or length. It plays as normal (the YouTube window plays by the video's ID), but it can't
-   be checked for being too long, and the time estimates leave it out (the admin Playlist page
-   shows "+ 1 song of unknown length").
+   be checked for being too long, and the time totals count it as 3 minutes (see below).
 
 An age-restricted video found by yt-dlp isn't retried. Playback is never affected: the video always
 plays in the YouTube window on the screen's laptop, never through the server.
