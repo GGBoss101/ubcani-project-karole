@@ -2,23 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { BACKEND_URI } from "../../../lib/config";
+import logo from "../../../../assets/Onigiri_Blue.svg";
 import styles from "./page.module.css";
+
+// There is only one admin account, so the page asks for the password alone and sends this
+// username with it. It must match ADMIN_USERNAME in backend/.env.
+const ADMIN_USERNAME = "admin";
 
 export default function AdminLogin() {
     const router = useRouter();
-    const [credentials, setCredentials] = useState({ username: "", password: "" });
+    const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-
-    function updateField(event) {
-        const { name, value } = event.target;
-        setCredentials((current) => ({ ...current, [name]: value }));
-    }
 
     async function handleSubmit(event) {
         event.preventDefault();
-        if (!credentials.username.trim() || !credentials.password) {
-            setError("Enter a username and password to continue.");
+        if (!password) {
+            setError("Enter the password to continue.");
             return;
         }
 
@@ -27,11 +28,12 @@ export default function AdminLogin() {
             const response = await fetch(`${BACKEND_URI}/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams(credentials),
+                body: new URLSearchParams({ username: ADMIN_USERNAME, password }),
                 // Lets the browser store the login cookie the backend sends back.
                 credentials: "include",
             });
             const result = await response.json().catch(() => null);
+            if (response.status === 401) throw new Error("That password isn't right.");
             if (!response.ok) throw new Error(result?.detail || "Unable to sign in");
             router.replace("/admin/playlist");
         } catch (requestError) {
@@ -42,25 +44,24 @@ export default function AdminLogin() {
     return (
         <main className={styles.page}>
             <section className={styles.panel}>
-                <p className={styles.eyebrow}>Admin</p>
+                <Image className={styles.logo} src={logo} alt="" width={56} height={56} priority />
+                <p className={styles.eyebrow}>UBCANI Karaoke admin</p>
                 <h1>Sign in</h1>
-                <p className={styles.intro}>Admin authentication will connect to the API later.</p>
+                <p className={styles.intro}>Sign in to run the karaoke queue.</p>
                 <form className={styles.form} onSubmit={handleSubmit}>
-                    <label className={styles.field}>
-                        <span>Username</span>
-                        <input name="username" value={credentials.username} onChange={updateField} required />
-                    </label>
                     <label className={styles.field}>
                         <span>Password</span>
                         <input
                             name="password"
                             type="password"
-                            value={credentials.password}
-                            onChange={updateField}
+                            autoComplete="current-password"
+                            autoFocus
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
                             required
                         />
                     </label>
-                    <button className={styles.submit} type="submit">Continue</button>
+                    <button className={`button-primary ${styles.submit}`} type="submit">Continue</button>
                     {error && <p className={styles.error} role="alert">{error}</p>}
                 </form>
             </section>

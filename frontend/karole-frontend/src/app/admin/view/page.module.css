@@ -1,13 +1,11 @@
 .page {
   min-height: 100vh;
-  background: #050505;
-  color: #f5f5f5;
-  font-family: var(--font-geist-sans);
+  background: #000;
   display: flex;
   flex-direction: column;
   padding: 0;
   overflow: hidden;
-  margin-top: 114px;
+  padding-top: 114px;
 }
 
 .playerArea {
@@ -32,18 +30,61 @@
   position: absolute;
   right: 20px;
   bottom: 20px;
+  display: grid;
   max-width: min(60%, 680px);
+  border-left: 3px solid var(--pink);
+  padding: 4px 0 4px 12px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.songTitle,
+.songTitle span {
   overflow: hidden;
-  color: #fff;
-  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.songTitle span {
+  color: var(--yellow);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Shows how far you can jump without waiting while the song is still downloading. */
+.download {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  background: color-mix(in srgb, var(--navy) 85%, transparent);
+  color: var(--aqua);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.idle {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.idleArt {
+  width: min(420px, 80vw);
+  aspect-ratio: 16 / 9;
 }
 
 .error {
   position: absolute;
   top: 20px;
-  color: #ff8f8f;
+  color: var(--danger);
   font-size: 13px;
 }
 
@@ -52,7 +93,7 @@
   justify-content: center;
   gap: 10px;
   padding: 18px;
-  background: rgba(5, 5, 5, 0.94);
+  background: color-mix(in srgb, var(--navy) 94%, transparent);
   opacity: 1;
   transition: opacity 180ms ease;
   z-index: 1;
@@ -70,19 +111,28 @@
 
 .controls button {
   min-width: 88px;
-  border: 1px solid #555;
-  border-radius: 0;
-  padding: 10px 16px;
-  background: #111;
-  color: #f5f5f5;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 10px 18px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .controls button:hover {
-  border-color: #fff;
-  background: #222;
+  border-color: var(--text);
+  background: var(--surface);
+}
+
+.controls .playButton {
+  border-color: var(--light-grey);
+  background: var(--light-grey);
+  color: var(--navy);
+}
+
+.controls .playButton:hover {
+  border-color: var(--light-blue);
+  background: var(--light-blue);
 }
 
 @media (max-width: 600px) {
@@ -98,4 +148,325 @@
     min-width: 0;
     flex: 1;
   }
+}
+
+.notice {
+  max-width: min(640px, 90vw);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--yellow) 10%, transparent);
+  color: var(--yellow);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* A song that can't be loaded: shown over the middle of the video so it can't be missed. */
+.failed {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: min(480px, calc(100vw - 32px));
+  padding: 18px 20px;
+  background: var(--navy);
+  border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+.retry {
+  margin-top: 10px;
+  min-height: 40px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0 18px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hint {
+  max-width: 420px;
+  font-size: 13px;
+}
+
+/* Remote control for the YouTube window (when the extension is installed): one panel holds
+   every control for the screen. */
+.remotePage {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 32px var(--gutter) var(--page-bottom);
+  background: var(--navy);
+}
+
+.remote {
+  display: grid;
+  gap: 22px;
+  width: min(720px, 100%);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 6px);
+  padding: clamp(20px, 4vw, 32px);
+  background: var(--surface);
+}
+
+.nowShowing {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.remoteState {
+  color: var(--aqua);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.remoteTitle {
+  overflow: hidden;
+  color: var(--pink);
+  font-size: clamp(22px, 4vw, 32px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remoteSinger {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.remoteSinger::before {
+  content: "\266A  ";
+}
+
+.remoteError {
+  margin-top: 16px;
+  color: var(--danger);
+  font-size: 14px;
+  text-align: center;
+}
+
+.seek {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.seek input,
+.settingRow input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  accent-color: var(--pink);
+}
+
+.transport {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.transport button,
+.iconButton,
+.rateValue {
+  min-height: var(--tap);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.transport button {
+  min-width: 96px;
+  font-size: 16px;
+}
+
+.transport button:hover,
+.iconButton:hover:not(:disabled),
+.rateValue:hover {
+  border-color: var(--light-blue);
+  color: var(--light-blue);
+}
+
+.transport .transportPlay {
+  min-width: 132px;
+  border-color: var(--light-grey);
+  background: var(--light-grey);
+  color: var(--navy);
+}
+
+.transport .transportPlay:hover {
+  border-color: var(--light-blue);
+  background: var(--light-blue);
+  color: var(--navy);
+}
+
+.iconButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.settings {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.setting {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.settingLabel {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.settingRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* The captions menu, styled like the site's text boxes. */
+.select {
+  width: 100%;
+  max-width: 360px;
+  min-height: var(--tap);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 40px 0 14px;
+  background: var(--navy-deep)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e3eaff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 14px center / 16px;
+  font-size: 15px;
+  appearance: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.select:focus {
+  border-color: var(--aqua);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--aqua) 18%, transparent);
+}
+
+.select:disabled {
+  cursor: not-allowed;
+  color: var(--text-muted);
+}
+
+.select option {
+  background: var(--navy);
+  color: var(--text);
+}
+
+.settingValue {
+  min-width: 52px;
+  color: var(--text-soft);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.rateValue {
+  min-width: 64px;
+  color: var(--aqua);
+  font-variant-numeric: tabular-nums;
+}
+
+.toggleOn {
+  border-color: var(--aqua);
+  color: var(--aqua);
+}
+
+/* Two rows in one setting: "Start each song paused", then "Auto-play after a delay" under it. */
+.settingStack {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.settingHint {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 560px) {
+  .setting {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .transport button {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* The phone remote: a note that the video is on the laptop, and the way back to the video player. */
+.remoteNote {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.modeSwitch {
+  justify-self: center;
+}
+
+/* Phones: Back, Play and Skip share the width equally. */
+@media (max-width: 30rem) {
+  .transport {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  /* Also the Play button, which is otherwise wider than its third of the row. */
+  .transport button,
+  .transport .transportPlay {
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0.5rem;
+  }
+}
+
+/* "Make this the main screen?", asked on the page itself. */
+.confirm {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-align: center;
+}
+
+.confirm p {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.confirmButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
 }

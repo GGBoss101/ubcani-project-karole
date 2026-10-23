@@ -1,41 +1,100 @@
 .header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: min(1440px, 100%);
-  margin: 0 auto 56px;
-  border-bottom: 1px solid #292929;
-  padding-bottom: 18px;
+  gap: 16px;
+  margin: 0 calc(var(--gutter) * -1) clamp(28px, 5vw, 48px);
+  border-bottom: 1px solid var(--line);
+  padding: calc(clamp(0.75rem, 0.64rem + 0.41vw, 1.125rem) + env(safe-area-inset-top)) var(--gutter) clamp(0.75rem, 0.64rem + 0.41vw, 1.125rem);
+  background: color-mix(in srgb, var(--navy) 88%, transparent);
+  backdrop-filter: blur(12px);
 }
 
 .brand {
-  color: #f5f5f5;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  display: flex;
+  min-height: var(--tap);
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-heading);
+  font-size: clamp(1.25rem, 1.06rem + 0.68vw, 1.875rem);
+  letter-spacing: 0.04em;
+}
+
+/* Desktop sizes grow with the window between today's size and a ceiling. */
+.logo {
+  width: clamp(2.125rem, 1.79rem + 1.22vw, 3.25rem);
+  height: clamp(2.125rem, 1.79rem + 1.22vw, 3.25rem);
 }
 
 .nav {
   display: flex;
-  gap: 24px;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  background: var(--navy-deep);
 }
 
 .nav a {
-  color: #777;
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  min-height: clamp(2.5rem, 2.28rem + 0.81vw, 3.25rem);
+  border-radius: var(--radius-pill);
+  padding: 0 clamp(1rem, 0.85rem + 0.54vw, 1.5rem);
+  color: var(--text-muted);
+  font-size: clamp(0.875rem, 0.8rem + 0.27vw, 1.125rem);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
 }
 
-.nav a:hover,
+.nav a:hover {
+  color: var(--text);
+}
+
 .nav .active {
-  color: #f5f5f5;
+  background: var(--pink);
+  color: var(--navy);
 }
 
-@media (max-width: 600px) {
+.nav .active:hover {
+  color: var(--navy);
+}
+
+/* Below this the name and the menu don't fit side by side, so only the logo shows. */
+@media (max-width: 370px) {
+  .brand span:last-child {
+    display: none;
+  }
+}
+
+/* Phones: keep "UBCANI Karole" on one line next to the menu. */
+@media (max-width: 440px) {
   .header {
-    margin-bottom: 40px;
+    gap: 10px;
+  }
+
+  .brand {
+    gap: 7px;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .logo {
+    width: 28px;
+    height: 28px;
   }
 
   .nav {
-    gap: 16px;
+    gap: 2px;
+  }
+
+  .nav a {
+    padding: 0 11px;
+    font-size: 13px;
   }
 }

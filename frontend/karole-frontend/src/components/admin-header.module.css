@@ -1,47 +1,111 @@
 .header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: min(1440px, 100%);
-  margin: 0 auto 56px;
-  border-bottom: 1px solid #292929;
-  padding-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0 calc(var(--gutter) * -1) clamp(28px, 5vw, 48px);
+  border-bottom: 1px solid var(--line);
+  padding: calc(clamp(0.75rem, 0.64rem + 0.41vw, 1.125rem) + env(safe-area-inset-top)) var(--gutter) clamp(0.75rem, 0.64rem + 0.41vw, 1.125rem);
+  background: color-mix(in srgb, var(--navy) 88%, transparent);
+  backdrop-filter: blur(12px);
 }
 
 .brand {
-  color: #f5f5f5;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  display: flex;
+  min-height: var(--tap);
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-heading);
+  font-size: clamp(1.25rem, 1.06rem + 0.68vw, 1.875rem);
+  letter-spacing: 0.04em;
+}
+
+/* Desktop sizes grow with the window between today's size and a ceiling, like the public header. */
+.logo {
+  width: clamp(2.125rem, 1.79rem + 1.22vw, 3.25rem);
+  height: clamp(2.125rem, 1.79rem + 1.22vw, 3.25rem);
+}
+
+.badge {
+  border-radius: var(--radius-pill);
+  padding: 0.27em 0.8em;
+  background: var(--yellow);
+  color: var(--navy);
+  font-family: var(--font-body);
+  font-size: clamp(0.6875rem, 0.63rem + 0.2vw, 0.875rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .nav {
   display: flex;
-  gap: 24px;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .nav a,
 .logout {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: clamp(2.5rem, 2.28rem + 0.81vw, 3.25rem);
   border: 0;
-  padding: 0;
+  border-radius: var(--radius-pill);
+  padding: 0 clamp(0.875rem, 0.75rem + 0.47vw, 1.3125rem);
   background: transparent;
-  color: #777;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
+  color: var(--text-muted);
+  font-size: clamp(0.875rem, 0.8rem + 0.27vw, 1.125rem);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
 }
 
 .nav a:hover,
-.nav .active,
 .logout:hover {
-  color: #f5f5f5;
+  color: var(--text);
+  background: var(--surface);
 }
 
-@media (max-width: 600px) {
-  .header {
-    margin-bottom: 40px;
-  }
+.nav .active,
+.nav .active:hover {
+  background: var(--pink);
+  color: var(--navy);
+}
+
+.logout {
+  margin-left: 6px;
+  border: 1px solid var(--line-strong);
+}
+
+@media (max-width: 640px) {
   .nav {
-    gap: 16px;
+    width: 100%;
+    margin: 0 calc(var(--gutter) * -1);
+    width: calc(100% + var(--gutter) * 2);
+    max-width: none;
+    padding: 0 var(--gutter);
+  }
+
+  .nav a,
+  .logout {
+    min-height: var(--tap);
+    padding: 0 9px;
+    font-size: 14px;
+  }
+
+  .nav {
+    gap: 0;
+  }
+
+  .logout {
+    margin-left: auto;
   }
 }

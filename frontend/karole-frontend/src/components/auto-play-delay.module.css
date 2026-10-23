@@ -1,0 +1,36 @@
+.delay {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-soft);
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Two classes, so pages that stretch their inputs (View's volume row) leave this one alone. */
+.delay .input {
+  flex: none;
+  width: 4.5rem;
+  min-height: var(--tap);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 0.375rem 0.75rem;
+  background: transparent;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.delay .input:focus-visible {
+  border-color: var(--light-blue);
+  outline: none;
+}
+
+/* Greyed out while "Start each song paused" is off. */
+.off {
+  opacity: 0.45;
+}
+
+.off .input {
+  cursor: not-allowed;
+}

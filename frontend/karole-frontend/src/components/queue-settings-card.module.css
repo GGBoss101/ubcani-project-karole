@@ -1,0 +1,135 @@
+.card {
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.25rem 0;
+  background: var(--surface);
+}
+
+.title {
+  padding: 0.75rem 1rem 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Name and description, then (for auto-play) the seconds box, then the switch. */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.row + .row {
+  border-top: 1px solid var(--line);
+}
+
+.withExtra {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+/* Depends on the row above it, so it hangs from it. */
+.nested {
+  margin-left: 1rem;
+  border-left: 2px solid var(--line-strong);
+  padding-left: 1rem;
+}
+
+.text {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.dangerText {
+  color: var(--danger);
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+/* The seconds box greys itself out. */
+.unavailable .text {
+  opacity: 0.45;
+}
+
+/* A compact switch inside a 44 px tap target. */
+.switch {
+  display: grid;
+  place-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.track {
+  position: relative;
+  width: 2.75rem;
+  height: 1.625rem;
+  border-radius: var(--radius-pill);
+  background: var(--line-strong);
+  transition: background 0.15s;
+}
+
+.thumb {
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--light-grey);
+  transition: transform 0.15s;
+}
+
+.on .track {
+  background: var(--light-blue);
+}
+
+.on .thumb {
+  background: var(--navy);
+  transform: translateX(1.125rem);
+}
+
+/* "Queue closed" is the unusual state, so it shows in red. */
+.danger .track {
+  background: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--light-blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Phones: the seconds box moves under the description, which would otherwise be squeezed. */
+@media (max-width: 30rem) {
+  .withExtra {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .withExtra .extra {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+}

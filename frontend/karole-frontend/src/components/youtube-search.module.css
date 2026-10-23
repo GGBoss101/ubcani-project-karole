@@ -1,0 +1,155 @@
+.search {
+  display: grid;
+  gap: 8px;
+}
+
+.label {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inputWrap {
+  position: relative;
+}
+
+.icon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.inputWrap input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 13px 14px 13px 42px;
+  outline: none;
+  background: var(--navy-deep);
+  font-size: 16px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.inputWrap input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.inputWrap input:focus {
+  border-color: var(--aqua);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--aqua) 18%, transparent);
+}
+
+/* Once something is typed, the highlight turns pink. */
+.inputWrap input:focus:not(:placeholder-shown) {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pink) 18%, transparent);
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.note {
+  padding: 14px 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* About four results show at once; the rest scroll. */
+.results {
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  list-style: none;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.results li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.results .highlighted {
+  background: color-mix(in srgb, var(--pink) 16%, transparent);
+}
+
+.thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 120px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--navy-deep);
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.duration {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: color-mix(in srgb, var(--navy) 85%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.channel {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 440px) {
+  .thumb {
+    width: 96px;
+  }
+
+  .title {
+    font-size: 14px;
+  }
+}

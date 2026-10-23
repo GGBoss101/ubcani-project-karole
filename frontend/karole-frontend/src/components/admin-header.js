@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
+import logo from "../../assets/Onigiri_Blue.svg";
 import { usePathname } from "next/navigation";
 import { logOut } from "../lib/admin-auth";
 import styles from "./admin-header.module.css";
@@ -11,7 +13,9 @@ export default function AdminHeader() {
     return (
         <header className={styles.header}>
             <Link className={styles.brand} href="/admin/playlist">
-                Karole Admin
+                <Image className={styles.logo} src={logo} alt="" width={34} height={34} priority />
+                <span>UBCANI</span>
+                <span className={styles.badge}>Admin</span>
             </Link>
             <nav className={styles.nav} aria-label="Admin navigation">
                 <Link className={pathname === "/admin/playlist" ? styles.active : ""} href="/admin/playlist">

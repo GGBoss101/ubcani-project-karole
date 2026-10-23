@@ -47,10 +47,19 @@ async def add_operation(body: OperationInput) -> OperationEntry:
 
 @router.get("/")
 async def get_opertation() -> list[OperationEntry]:
-    data = await col.find().to_list()
+    # A suggestion only makes sense while both of its names are still main names. Merging,
+    # deleting, promoting or flushing names on the Names page can change that, so suggestions
+    # that went out of date are dropped here, the next time the list is read.
+    main_names = {entry["name"] for entry in await name_col.find({}, {"name": 1}).to_list()}
     operations = []
-    for i in data:
-        operations.append(OperationEntry(**i))
+    stale_ids = []
+    for i in await col.find().to_list():
+        if i["name"] in main_names and i["name_alt"] in main_names:
+            operations.append(OperationEntry(**i))
+        else:
+            stale_ids.append(i["po_id"])
+    if stale_ids:
+        await col.delete_many({"po_id": {"$in": stale_ids}})
     return operations
     
 @router.delete("/flush")
@@ -66,7 +75,7 @@ async def delete(body: OperationID) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Operation not found")
     
 @router.post("/handle")
-async def handle_case(body: OperationID) -> NameEntry:
+async def handle_case(body: OperationID, combine_queues: bool = True) -> NameEntry:
     operation = await col.find_one({"po_id": body.po_id})
     if operation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Operation not found")
@@ -78,20 +87,26 @@ async def handle_case(body: OperationID) -> NameEntry:
     if name_alt_entry is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alt name not found")
 
-    # Merge the names first: it raises before anything changes if either name is gone.
+    # Merging the names also moves the merged name's songs over (see name_to_alt). It raises
+    # before anything changes if either name is gone.
     name_entry = await name.name_to_alt(
-        NameChange(name=operation["name"], name_alt=operation["name_alt"])
+        NameChange(name=operation["name"], name_alt=operation["name_alt"]),
+        combine_queues,
     )
-    playlist_store.requeue_songs_under_name(name_alt_entry["name_id"], name_entry)
     await col.delete_one({"po_id": body.po_id})
     return name_entry
 
 @router.post("/handle_all")
-async def handle_all() -> list[NameEntry]:
+async def handle_all(combine_queues: bool = True) -> list[NameEntry]:
     operations = await col.find({}, {"po_id": 1}).to_list()
     handled_entries = []
     for operation in operations:
-        handled_entries.append(
-            await handle_case(OperationID(po_id=operation["po_id"]))
-        )
+        # Each one is read again as it is handled, since an earlier match can leave a later
+        # suggestion out of date; one that can no longer be matched is skipped, not fatal.
+        try:
+            handled_entries.append(
+                await handle_case(OperationID(po_id=operation["po_id"]), combine_queues)
+            )
+        except HTTPException:
+            continue
     return handled_entries

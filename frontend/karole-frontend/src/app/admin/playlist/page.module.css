@@ -1,136 +1,406 @@
-.page {
-  min-height: 100vh;
-  padding: 48px clamp(20px, 5vw, 72px);
-  background: #050505;
-  color: #f5f5f5;
-  font-family: var(--font-geist-sans);
-}
-
-.panel {
-  width: min(1100px, 100%);
-  margin: 0 auto;
-}
-
-.heading {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 28px;
-  border-bottom: 1px solid #292929;
-  padding-bottom: 28px;
-}
-
-.eyebrow {
-  margin-bottom: 14px;
-  color: #777;
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-
-.heading h1 {
-  font-size: clamp(34px, 5vw, 58px);
-  line-height: 1;
-  font-weight: 600;
-}
-
-.signOut,
-.menuButton,
-.menu button {
-  border: 1px solid #444;
-  border-radius: 0;
-  background: transparent;
-  color: #bbb;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-}
-
-.signOut {
-  padding: 9px 12px;
-}
-
-.flushButton {
-  border: 1px solid #b32828;
-  border-radius: 0;
-  padding: 10px 14px;
-  background: #8f1717;
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.flushButton:hover {
-  border-color: #ff8585;
-  background: #b51e1e;
-}
-
-.dangerZone {
+.queueBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  margin-top: 40px;
-  border-top: 1px solid #292929;
-  padding-top: 18px;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-bottom: 16px;
 }
 
-.dangerZone p {
-  color: #777;
-  font-size: 11px;
-  letter-spacing: 1px;
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.stats div {
+  min-width: 108px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+}
+
+.stats dt {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-.signOut:hover,
-.menu button:hover,
-.menuButton:hover {
-  border-color: #f5f5f5;
-  color: #fff;
+.stats dd {
+  color: var(--aqua);
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
 }
 
-.tableWrap {
-  overflow-x: auto;
-  border: 1px solid #333;
+/* The waits "Start each song paused" adds, under Time left and Whole queue. */
+.stats .statNote {
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
-.tableWrap table {
-  width: 100%;
-  min-width: 980px;
-  border-collapse: collapse;
-  text-align: left;
+.controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 6px);
+  padding: 16px;
+  background: var(--surface);
 }
 
-.tableWrap th,
-.tableWrap td {
-  padding: 16px 18px;
-  border-bottom: 1px solid #242424;
+.isPlaying {
+  border-color: var(--pink);
+  background: color-mix(in srgb, var(--pink) 10%, var(--navy));
+}
+
+.nowPlayingArt {
+  width: 112px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+}
+
+.nowPlaying {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.playbackState {
+  color: var(--aqua);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.isPlaying .playbackState {
+  color: var(--pink);
+}
+
+.nowPlayingTitle {
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 700;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tableWrap th {
-  color: #999;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+.nowPlayingTitle span {
+  color: var(--yellow);
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.tableWrap td {
-  color: #e4e4e4;
+.controlButtons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controlButtons button {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 9px 16px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.controlButtons button:hover {
+  border-color: var(--text);
+  background: var(--surface-raised);
+}
+
+.controlButtons .playButton {
+  min-width: 84px;
+  border-color: var(--light-grey);
+  background: var(--light-grey);
+  color: var(--navy);
+}
+
+.controlButtons .playButton:hover {
+  border-color: var(--light-blue);
+  background: var(--light-blue);
+}
+
+.controlButtons .playButton:active {
+  border-color: var(--periwinkle);
+  background: var(--periwinkle);
+}
+
+/* Which device plays the video, beside the numbers. */
+.screenNote {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* The queue's switches, between the playback card and the warnings. */
+.settingsCard {
+  margin-bottom: 1.25rem;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-bottom: 12px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 50%, transparent);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--yellow) 8%, transparent);
+  color: var(--yellow);
   font-size: 14px;
 }
 
-.tableWrap tbody tr:last-child td {
-  border-bottom: 0;
+.noticeActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
 }
 
-.tableWrap tbody tr:hover {
-  background: #111;
+.noticeActions button {
+  border: 1px solid var(--yellow);
+  border-radius: var(--radius-pill);
+  padding: 7px 14px;
+  background: transparent;
+  color: var(--yellow);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.noticeActions button:hover {
+  background: var(--yellow);
+  color: var(--navy);
+}
+
+/* Songs deleted for being too long, listed so they can be unblocked. */
+.blocked {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  background: var(--surface);
+}
+
+.blocked h2 {
+  color: var(--yellow);
+  font-size: 18px;
+}
+
+.blocked > p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.blocked ul {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.blocked li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.blocked li div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.blocked li a {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blocked li a:hover {
+  color: var(--light-blue);
+}
+
+.blocked li span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.blocked li button {
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 7px 14px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.blocked li button:hover {
+  border-color: var(--light-blue);
+  color: var(--light-blue);
+}
+
+/* Restoring a past session from the playlist log. */
+.restore {
+  display: grid;
+  /* minmax(0, 1fr): a long session name in the menu can't stretch the box past the screen. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: clamp(16px, 3vw, 20px) clamp(16px, 3vw, 22px);
+  background: var(--surface);
+}
+
+.restore h2 {
+  color: var(--aqua);
+  font-size: clamp(15px, 4vw, 18px);
+  overflow-wrap: anywhere;
+}
+
+.restore p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.restore button {
+  justify-self: start;
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 0 22px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.restore button:hover:not(:disabled) {
+  border-color: var(--light-blue);
+  color: var(--light-blue);
+}
+
+.restore button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.restoreRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Styled like the site's text boxes, with its own arrow. */
+.restoreRow select {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 44px 0 14px;
+  background: var(--navy-deep)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e3eaff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 16px center / 16px;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  appearance: none;
+  outline: none;
   cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.restoreRow select:focus {
+  border-color: var(--aqua);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--aqua) 18%, transparent);
+}
+
+.restoreRow select option {
+  background: var(--navy);
+  color: var(--text);
+}
+
+.restoreRow button {
+  border-color: var(--light-grey);
+  background: var(--light-grey);
+  color: var(--navy);
+}
+
+.restoreRow button:hover:not(:disabled) {
+  border-color: var(--light-blue);
+  background: var(--light-blue);
+  color: var(--navy);
+}
+
+.restore .restoreHint {
+  color: var(--yellow);
+}
+
+/* Phones: the menu takes the full width and Restore goes under it. */
+@media (max-width: 560px) {
+  .restoreRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .restore button {
+    justify-self: stretch;
+  }
+}
+
+/* Clicking a row jumps playback to that song. */
+.row {
+  cursor: pointer;
+}
+
+/* Every song stays listed so the admin can go back to one; sung ones are dimmed. */
+.currentRow td {
+  background: color-mix(in srgb, var(--pink) 12%, transparent);
+}
+
+/* The actions cell isn't dimmed: it holds the song menu, which should stay fully opaque. */
+.sungRow td:not(.actionCell) {
+  opacity: 0.5;
+}
+
+.rowBadge {
+  display: block;
+  width: fit-content;
+  margin-top: 4px;
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
+  background: var(--pink);
+  color: var(--navy);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .dragging {
@@ -138,9 +408,10 @@
 }
 
 .order {
-  color: #fff;
+  color: var(--pink);
+  font-family: var(--font-heading);
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
 }
 
 .channel {
@@ -159,57 +430,80 @@
 }
 
 .channelIcon {
+  flex-shrink: 0;
   width: 28px;
   height: 28px;
   border-radius: 50%;
   object-fit: cover;
-  background: #222;
+  background: var(--blue);
 }
 
 .songLink {
   display: block;
-  max-width: 360px;
+  max-width: 340px;
   overflow: hidden;
-  width: fit-content;
-  color: #f5f5f5;
-  border-bottom: 1px solid transparent;
+  color: var(--text);
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .songLink:hover {
-  border-bottom-color: #fff;
+  color: var(--aqua);
 }
 
 .actionCell {
   position: relative;
-  width: 68px;
+  width: 64px;
+  text-align: right;
+}
+
+.menuButton,
+.menu button {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .menuButton {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   font-size: 16px;
   line-height: 1;
 }
 
+.menuButton:hover,
+.menuButton[aria-expanded="true"] {
+  border-color: var(--aqua);
+  color: var(--aqua);
+}
+
 .menu {
-  position: absolute;
-  z-index: 2;
-  top: 48px;
-  right: 8px;
+  position: fixed;
+  z-index: 50;
   display: grid;
-  min-width: 180px;
+  min-width: 200px;
   gap: 8px;
-  border: 1px solid #444;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   padding: 12px;
-  background: #181818;
-  box-shadow: 0 12px 24px #000;
+  background: var(--surface-raised);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  text-align: left;
+  cursor: default;
 }
 
 .menu button {
-  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
   text-align: left;
+}
+
+.menu button:hover {
+  border-color: var(--text);
+  background: var(--surface);
 }
 
 .menu button:disabled {
@@ -219,11 +513,11 @@
 
 .menu label {
   display: grid;
-  grid-template-columns: 1fr 58px;
+  grid-template-columns: 1fr 64px;
   align-items: center;
   gap: 6px;
-  color: #aaa;
-  font-size: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 .menu label button {
@@ -232,117 +526,116 @@
 
 .menu input {
   width: 100%;
-  border: 1px solid #444;
-  border-radius: 0;
-  padding: 7px;
-  background: #0b0b0b;
-  color: #fff;
-  font: inherit;
+  font-size: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 8px;
+  background: var(--navy-deep);
 }
 
-.menu .delete {
-  border-color: #7a3838;
-  color: #ff9b9b;
+.menu .delete,
+.menu .delete:hover {
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  color: var(--danger);
 }
 
-.message,
-.error {
-  padding: 28px 0;
-  color: #999;
+@media (pointer: coarse), (max-width: 720px) {
+  .menuButton {
+    width: var(--tap);
+    height: var(--tap);
+  }
 }
 
-.error {
-  color: #ff8f8f;
-}
-
-.controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.nowPlaying {
-  overflow: hidden;
-  color: #bbb;
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.controlButtons {
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
-}
-
-.controlButtons button {
-  min-width: 72px;
-  border: 1px solid #444;
-  border-radius: 0;
-  padding: 9px 12px;
-  background: transparent;
-  color: #bbb;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-}
-
-.controlButtons button:hover {
-  border-color: #f5f5f5;
-  color: #fff;
-}
-
-.notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 12px;
-  border: 1px solid #b38a28;
-  padding: 12px 14px;
-  color: #e6c46a;
-  font-size: 13px;
-}
-
-.noticeActions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
-}
-
-.noticeActions button {
-  border: 1px solid #b38a28;
-  border-radius: 0;
-  padding: 8px 12px;
-  background: transparent;
-  color: #e6c46a;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-}
-
-.noticeActions button:hover {
-  background: #b38a28;
-  color: #111;
-}
-
-@media (max-width: 600px) {
-  .page {
-    padding: 28px 16px;
+@media (max-width: 720px) {
+  .stats {
+    width: 100%;
   }
 
-  .heading {
-    align-items: start;
-    flex-direction: column;
+  .stats div {
+    flex: 1;
+    min-width: 0;
   }
 
-  .channelName {
-    max-width: 120px;
+  .controls {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
+  .nowPlayingArt {
+    width: 72px;
+    font-size: 0;
+  }
+
+  /* Three equal buttons across the card, big enough for thumbs, Play filled in the middle. */
+  .controlButtons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-column: 1 / -1;
+    gap: 0.5rem;
+  }
+
+  .controlButtons button,
+  .controlButtons .playButton {
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0.5rem;
+    font-size: 0.9375rem;
+  }
+
+  .channelName,
   .songLink {
-    max-width: 220px;
+    max-width: 200px;
+  }
+
+  /* On a phone each row is a rounded card, so the song playing now tints the whole card, with a
+     pink edge like the public queue's, rather than a square block inside it. */
+  tbody tr.row.currentRow {
+    border-color: var(--pink);
+    background: color-mix(in srgb, var(--pink) 10%, var(--navy));
+  }
+
+  tbody tr.row.currentRow td {
+    background: transparent;
+  }
+
+  /* Keeps each song card short; the channel is the least useful detail on a phone. */
+  .channelCell {
+    display: none !important;
+  }
+
+  .actionCell {
+    width: auto;
+    justify-content: flex-end !important;
+  }
+}
+
+/* Touch screens: the warning buttons are full-size tap targets too. */
+@media (pointer: coarse) {
+  .noticeActions button {
+    min-height: 2.75rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Small phones: the three numbers keep to one line each. */
+@media (max-width: 25rem) {
+  .stats {
+    gap: 0.5rem;
+  }
+
+  .stats div {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .stats dt {
+    font-size: 0.625rem;
+    letter-spacing: 0.06em;
+  }
+
+  .stats dd {
+    font-size: 1.0625rem;
+  }
+
+  .stats .statNote {
+    font-size: 0.6875rem;
   }
 }
